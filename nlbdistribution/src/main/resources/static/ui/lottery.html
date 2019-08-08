@@ -1,0 +1,592 @@
+<!doctype html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Lottery Distribution Management System</title>
+    <link rel="stylesheet" href="../plugin/bootstrap/css/bootstrap.min.css"/>
+    <script src="../plugin/jquery/jquery.min.js"></script>
+    <script src="../plugin/bootstrap/js/bootstrap.min.js"></script>
+
+    <link rel="stylesheet" href="../style/common.css"/>
+    <script src="../script/common.bitproject.earth.lk.v1.js"></script>
+    <script src="../script/ui.bitproject.earth.lk.v2.js"></script>
+
+    <style>
+
+        body{
+
+            /*background-image: url("../image/a.jpg") repeat;*/
+            background: url(../image/aaa.jpg) repeat;
+            opacity: 0.9;
+            filter: alpha(opacity=90);/* For IE8 and earlier */
+            background-size: cover;
+        }
+
+        #lotteryform{
+
+            /*background: url(../image/abc.jpg);*/
+            /*border       : 1px solid #8b96a8;*/
+            border-radius: 1px;
+
+        }
+
+        #lotteryform script{
+
+            color: white;
+
+        }
+
+        #lotteryview{
+
+
+        }
+
+    </style>
+
+    <script>
+
+        window.addEventListener("load", initialize);
+
+        //Initializing Functions
+
+        function initialize() {
+
+            btnAdd.addEventListener("click",btnAddMC);
+            btnClear.addEventListener("click",btnClearMC);
+            btnUpdate.addEventListener("click",btnUpdateMC);
+            btnDelete.addEventListener("click",btnDeleteMC);
+            btnSearch.addEventListener("click",btnSearchMC);
+            btnSearchClear.addEventListener("click",btnSearchClearMC);
+
+            privilages = httpRequest("../privilages?module=LOTTERY","GET");
+
+            regexes = httpRequest("../regexes/lottery","GET");
+            txtPricesale.setAttribute("data-pattern",regexes.pricesale.regex);
+            txtPricedistribution.setAttribute("data-pattern",regexes.pricedistribution.regex);
+
+            days = httpRequest("../days/list","GET");
+            digittypes = httpRequest("../digittypes/list","GET");
+            lotterytypes = httpRequest("../lotterytypes/list","GET");
+            lotterycolors = httpRequest("../lotterycolors/list","GET");
+            lotterystatuses = httpRequest("../lotterystatuses/list","GET");
+
+
+            valid = "lightgreen";
+            invalid = "pink";
+            initial = "white";
+            updated = "khaki";
+            active = "khaki";
+
+            loadView();
+            loadForm();
+
+        }
+
+        function loadView() {
+
+            //Search Area
+             fillCombo(cmbSearchLotterytype,"Lottery Type",lotterytypes,"name","");
+             fillCombo(cmbSearchDay,"Day",days,"name","");
+             cmbSearchLotterytype.style.background = "";
+             cmbSearchDay.style.background = "";
+
+
+            //Table Area
+            activerowno = "";
+            activepage = 1;
+            var query = "&lotterytypeid=&dayid=";
+            loadTable(1,cmbPageSize.value,query);
+        }
+
+        function loadTable(page,size,query) {
+            page = page - 1;
+            lotteries = new Array();
+            var data = httpRequest("/lotteries?page="+page+"&size="+size+query,"GET");
+            if(data.content!= undefined) lotteries = data.content;
+            createPagination('pagination',data.totalPages, data.number+1,paginate);
+            fillTable('tblLottery',lotteries,fillForm);
+            clearSelection(tblLottery);
+            if(activerowno!="")selectRow(tblLottery,activerowno,active);
+            window.location.href="#ui";
+        }
+
+        function paginate(page) {
+            var paginate;
+            if(oldlottery==null){
+                paginate=true;
+            }else{
+                if(getErrors()==''&&getUpdates()==''){
+                    paginate=true;
+                }else{
+                    paginate = window.confirm("Form has Some Errors or Update Values. " +
+                        "Are you sure to discard that changes ?");
+                }
+            }
+            if(paginate) {
+                activepage=page;
+                activerowno=""
+                loadSearchedTable();
+                loadForm();
+            }
+
+        }
+
+        function loadForm() {
+            lottery = new Object();
+            oldlottery = null;
+
+            fillCombo(cmbDay,"Select Day",days,"name","");
+            fillCombo(cmbDigittype,"Select Digit Type",digittypes,"name","");
+            fillCombo(cmbLotterytype,"Select Lottery Type",lotterytypes,"name","");
+            fillCombo(cmbLotterycolor,"Select Lottery Color",lotterycolors,"name","");
+            fillCombo(cmbLotterystatus,"Select Status",lotterystatuses,"name","");
+
+            fillCombo(cmbLotterystatus,"",lotterystatuses,"name","Available");
+            lottery.lotterystatusId=JSON.parse(cmbLotterystatus.value);
+
+
+            var today = new Date();
+            var month = today.getMonth()+1;
+            if(month<10) month = "0"+month;
+            var date = today.getDate();
+            if(date<10) date = "0"+date;
+
+            dteDOIntroduced.value=today.getFullYear()+"-"+month+"-"+date;
+
+            lottery.dointroduced=dteDOIntroduced.value;
+
+
+            //txtLotteryname.value="";
+            txtPricesale.value="";
+            txtPricedistribution.value="";
+            //dteDOIntroduced.value="";
+            removeFile('flePhoto');
+
+            setStyle(initial);
+            cmbLotterystatus.style.background=valid;
+            cmbLotterystatus.disabled="disabled";
+            dteDOIntroduced.style.background=valid;
+
+            //disableButtons(false, true, true);
+
+        }
+
+        function setStyle(style) {
+
+            cmbLotterytype.style.background = style;
+            cmbDay.style.background = style;
+            //txtLotteryname.style.background = style;
+            cmbLotterycolor.style.background = style;
+            cmbDigittype.style.background = style;
+            txtPricesale.style.background = style;
+            txtPricedistribution.style.background = style;
+            dteDOIntroduced.style.background = style;
+            cmbLotterystatus.style.background = style;
+
+       }
+
+        function disableButtons(add, upd, del) {
+
+            if (add || !privilages.add) btnAdd.setAttribute("disabled", "disabled");
+            else btnAdd.removeAttribute("disabled");
+
+            if (upd || !privilages.update) btnUpdate.setAttribute("disabled", "disabled");
+            else btnUpdate.removeAttribute("disabled");
+
+            if (del || !privilages.delete) btnDelete.setAttribute("disabled", "disabled");
+            else btnDelete.removeAttribute("disabled");
+
+        }
+
+
+        // Binding and Validation Functions for Non-Regex-Based
+        // When Regex-Based default validation is used, programmers do not need to define these functions
+        // Default Validation and Binding is coded in "ui.bitproject.earth.lk.js"
+
+
+        //Form Operation Functions
+
+        function getErrors() {
+
+            var errors = "";
+
+            if (lottery.lotterytypeId == null)
+                errors = errors + "\n" + "Lottery Type is Not Selected";
+
+            if (lottery.dayId == null)
+                errors = errors + "\n" + "Day id Not Selected";
+
+
+            if (lottery.lotterycolorId == null)
+                errors = errors + "\n" + "Lottery Color is Not Selected";
+
+            if (lottery.digittypeId == null)
+                errors = errors + "\n" + "Digit Type is Not Selected";
+
+            if (lottery.pricesale == null)
+                errors = errors + "\n" + regexes.pricesale.message;
+
+            if (lottery.pricedistribution == null)
+                errors = errors + "\n" + regexes.pricedistribution.message;
+
+            if (lottery.dointroduced == null)
+                errors = errors + "\n" + "Introduced Date Invalid";
+
+            if (lottery.lotterystatusId == null)
+                errors = errors + "\n" + "Lottery status Not Selected";
+
+
+            return errors;
+
+
+        }
+
+        function btnAddMC() {
+            //alert("SS");
+           var errors = getErrors();
+
+            if(errors=="") {
+                var option = window.confirm("Are you sure to add following Lottery ?\n"+
+                    "\nLottery Type : " + lottery.lotterytypeId.name +
+                    "\nDay : " + lottery.dayId.name +
+                    "\Lottery Color : " + lottery.lotterycolorId.name +
+                    "\nDigit Type : " + lottery.digittypeId.name +
+                    "\nSale Price : " + lottery.pricesale +
+                    "\nSale Distribution : " + lottery.pricedistribution +
+                    "\nIntroduced Date : " + lottery.dointroduced +
+                    "\nLottery Status : " + lottery.lotterystatusId.name
+                );
+
+                if(option==true) {
+                    var response = httpRequest("/lotteries","POST",lottery);
+                    if(response=="0"){
+                        toast("<strong>Success !</strong> Saved Successfully","success");
+                        loadForm();
+                        activerowno = 1;
+                        loadSearchedTable();
+                        var query = "&lotterytypeid=&dayid=&lotterystatusid=";
+                        loadTable(1,cmbPageSize.value,query);
+                    }
+                    else window.alert("Failed to Add as \n\n"+response);
+                }
+
+            }
+            else
+            { window.alert("You have following Errors\n"+errors); }
+
+
+        }
+
+        function btnClearMC() {
+
+            //Get Cofirmation from the User window.confirm();
+/*
+            var clear;
+            if(oldlottery==null){
+                clear=true;
+            }else{
+                if(getErrors()==''&&getUpdates()==''){
+                    clear=true;
+                }else{
+                    clear = window.confirm("Form has Some Errors or Update Values. " +
+                        "Are you sure to discard that changes ?");
+                }
+            }
+            if(clear) {
+                loadForm();
+                clearSelection(tblEmployee);
+            }
+
+*/
+
+
+        }
+
+        function fillForm(lot,rowno){
+           activerowno = rowno;
+            var filling;
+            if(oldlottery==null){
+                filling=true;
+            }else{
+
+                if(getErrors()==''&&getUpdates()==''){
+                    filling=true;
+                }else{
+                    filling = window.confirm("Form has Some Errors or Update Values. " +
+                        "Are you sure to discard that changes ?");
+                }
+            }
+
+            if(filling) {
+
+                clearSelection(tblLottery);
+                selectRow(tblLottery,activerowno,active);
+
+                lottery = JSON.parse(JSON.stringify(lot));
+                oldlottery = JSON.parse(JSON.stringify(lot));
+
+                txtPricesale.value = lottery.pricesale;
+                txtPricedistribution.value = lottery.pricedistribution;
+                dteDOIntroduced.value = lottery.dointroduced;
+
+                cmbLotterytype.disabled="disabled";
+                cmbDay.disabled="disabled";
+                dteDOIntroduced.disabled="disabled";
+
+                fillCombo(cmbDay, "Select Day", days, "name", lottery.dayId.name);
+                fillCombo(cmbDigittype, "Select Digit Type", digittypes, "name", lottery.digittypeId.name);
+                fillCombo(cmbLotterycolor, "Select Color", lotterycolors, "name", lottery.lotterycolorId.name);
+                fillCombo(cmbLotterytype, "Select Type", lotterytypes, "name", lottery.lotterytypeId.name);
+                fillCombo(cmbLotterystatus, "Select Status", lotterystatuses, "name", lottery.lotterystatusId.name);
+
+                setDefaultFile('flePhoto', lottery.photo);
+
+                disableButtons(true, false, true);
+                setStyle(valid);
+            }
+
+        }
+
+        function getUpdates() {
+
+            var updates = "";
+
+            if(lottery!=null && oldlottery!=null) {
+
+                if (lottery.lotterytypeId.name != oldlottery.lotterytypeId.name)
+                    updates = updates + "\nLottery Type is Changed";
+
+                if (lottery.dayId.name != oldlottery.dayId.name)
+                    updates = updates + "\nDay is Changed";
+
+                if (lottery.name != oldlottery.name)
+                    updates = updates + "\nName is Changed";
+
+                if (lottery.lotterycolorId.name != oldlottery.lotterycolorId.name)
+                    updates = updates + "\nColor is Changed";
+
+                if (lottery.digittypeId.name != oldlottery.digittypeId.name)
+                    updates = updates + "\nDigit Type is Changed";
+
+                if (lottery.photo != oldlottery.photo)
+                    updates = updates + "\nPhoto is Changed";
+
+                if (lottery.pricesale != oldlottery.pricesale)
+                    updates = updates + "\nPrice Sale is Changed";
+
+                if (lottery.pricedistribution != oldlottery.pricedistribution)
+                    updates = updates + "\nPrice Distribution is Changed";
+
+                if (lottery.dointroduced != oldlottery.dointroduced)
+                    updates = updates + "\nDate of Introduced is Changed";
+
+                if (lottery.lotterystatusId.name != oldlottery.lotterystatusId.name)
+                    updates = updates + "\nLottery Status is Changed";
+            }
+
+            return updates;
+
+        }
+
+        function btnUpdateMC() {
+            var errors = getErrors();
+            if (errors == "") {
+                var updates = getUpdates();
+                if (updates == "") window.alert("Nothing Updated!");
+                else {
+
+                    var option = window.confirm("\n\nAre your sure to update followings ! \n\n" + updates);
+                    if(option==true) {
+                        var response = httpRequest("/lotteries","PUT",lottery);
+                        if(response=="0"){
+                            toast("<strong>Success !</strong> Updated Successfully","success");
+                            loadForm();
+                            loadTable(1,cmbPageSize.value,"");
+                            loadSearchedTable();
+
+                        }
+                        else window.alert("Failed to Update as \n\n"+response);
+                    }
+
+
+                }
+            }
+            else
+                window.alert("You have following errors in your form\n\n"+getErrors());
+        }
+
+        function btnDeleteMC() {
+
+
+            var option = window.confirm("\n\nAre your sure to delete following ! \n\n" +
+                "Lottery : " +lottery.name);
+
+            if(option==true) {
+                var response = httpRequest("/lotteries","DELETE",lottery);
+                if(response=="0"){
+                    toast("<strong>Success !</strong> Deleted Successfully","success");
+                    loadForm();
+                    loadSearchedTable();
+                    loadTable(1,cmbPageSize.value,"");
+
+                }
+                else window.alert("Failed to Delete as \n\n"+response);
+            }
+
+        }
+
+
+        //Search Functions
+
+        function loadSearchedTable() {
+
+            var lotterytype = cmbSearchLotterytype.value;
+            var day = cmbSearchDay.value;
+
+            var lotterytypeid="";
+            if(lotterytype!="Lottery Type")
+            { lotterytypeid = JSON.parse(lotterytype).id;
+                cmbSearchLotterytype.style.background = active;}
+
+            var dayid="";
+            if(day!="Day")
+            {  dayid = JSON.parse(day).id;
+                cmbSearchDay.style.background = active; }
+
+           // if(name!=""){  txtSearchName.style.background = active; }
+            //if(nic!=""){  txtSearchNIC.style.background = active; }
+
+            var query ="&lotterytypeid=&dayid=";
+
+            if(lotterytypeid!="" || dayid!="" )
+                query = "&lotterytypeid=" + lotterytypeid + "&dayid=" + dayid;
+
+            //window.alert(query);
+            loadTable(activepage, cmbPageSize.value, query);
+
+      }
+
+        function btnSearchMC(){
+            activepage=1;
+            loadSearchedTable();
+        }
+
+        function btnSearchClearMC(){
+          loadView();
+        }
+
+    </script>
+
+
+
+</head>
+
+<body>
+<div class="container-fluid">
+    <div class="row" id="ui">
+        <div class="col-md-12">
+            <div class="panel panel-primary" style="margin-top: 10px;">
+                <div class="panel-heading" style="background-color: #000033;">
+                    <img style="margin:0 25px 0 15px; display: inline" height="100" width="100" src="../image/logo.png"/>
+                    <h3 style="display: inline">Lottery Management</h3>
+                </div>
+
+                <div class="panel-body" >
+                    <div class="row">
+
+
+                        <div class="col-md-4" id="form">
+                            <form class="form-horizontal" onsubmit="return false" id="lotteryform" >
+
+                                <script>
+
+                                    // Defining UI-Componnets and Layouts
+                                    // Default UI-Componnets and Layouts is coded in "ui.bitproject.earth.lk.js"
+
+                                    comboBox('lotteryform','cmbLotterytype','Lottery Type',4,'lottery','lotterytypeId','oldlottery');
+                                    comboBox('lotteryform','cmbDay','Day',4,'lottery','dayId','oldlottery');
+                                   // textField('lotteryform','txtLotteryname','Name of the Lottery','Type Name Here','',4,"",'lottery','name','oldlottery');
+                                    comboBox('lotteryform','cmbLotterycolor','Color',4,'lottery','lotterycolorId','oldlottery');
+                                    comboBox('lotteryform','cmbDigittype','Digittype',4,'lottery','digittypeId','oldlottery');
+                                    fileChooser('lotteryform','flePhoto','Photo',4,['.jpg','.png'],5,true,'lottery','photo','oldlottery');
+                                    textField('lotteryform','txtPricesale','Sale Price','Enter Sale Price','',4,"",'lottery','pricesale','oldlottery');
+                                    textField('lotteryform','txtPricedistribution','Distribution Price','Enter Distribution Price Here','',4,"",'lottery','pricedistribution','oldlottery');
+                                    dateField('lotteryform','dteDOIntroduced','Date of Introduced','Select Introduced Date',4,"",'lottery','dointroduced','oldlottery');
+                                    comboBox('lotteryform','cmbLotterystatus','Status',4,'lottery','digittypeId','oldlottery');
+
+                                    // Custom UI-Componnets and Layouting
+
+                                </script>
+
+
+                                <div class="text-right">
+                                    <input class="btn btn-danger btn-sm" type="button" id="btnDelete" value="Delete" style="width: 15%"/>
+                                    <input class="btn btn-warning btn-sm" type="button" id="btnUpdate" value="Update" style="width: 15%"/>
+                                    <input class="btn btn-success btn-sm" type="button" id="btnAdd" value="Add" style="width: 17%"/>
+                                    <input class="btn btn-warning btn-sm" type="button" id="btnClear" value="Clear" style="width: 15%"/>
+                                </div>
+
+
+                            </form>
+                        </div>
+
+                        <div class="col-md-1"></div>
+
+                        <div class="col-md-7" id="lotteryview">
+
+                            <hr/>
+
+                            <div class="table-responsive" id="tableParent">
+
+                                <script>
+
+                                    function getNameColumn(ob) {
+                                        return ob.dayId.name+" "+ob.lotterytypeId.name;
+                                    }
+
+                                    var metadata = [
+                                        {name:'Type',search:true,datatype:'text',property:'lotterytypeId.name'},
+                                        {name:'Day',search:true,datatype:'text',property:'dayId.name'},
+                                        {name:'Name',search:true,datatype:'text',property:getNameColumn},
+                                        {name:'Color',search:true,datatype:'text',property:'lotterycolorId.name'},
+                                        {name:'Digittype',search:true,datatype:'text',property:'digittypeId.name'}
+                                    ];
+                                    table("tableParent","tblLottery",metadata,[5,10,15,30,500,1000],btnSearchMC,true);
+                                </script>
+
+
+                                <form class="form-inline" onsubmit="return false">
+
+                                        <div class="form-group form-group-sm">
+                                        <select class="form-control" id="cmbSearchLotterytype"></select>
+                                        </div><br/><br/>
+                                        <div class="form-group form-group-sm">
+                                        <select class="form-control" id="cmbSearchDay"></select>
+                                        </div><br/><br>
+
+                                        <input type="button" class="btn btn-success btn-sm" value="Search" id="btnSearch"/>
+                                        <input type="button" class="btn btn-warning btn-sm" value="Clear" id="btnSearchClear"/>
+
+                                        </form>
+
+
+
+                            </div>
+                            <ul id="pagination" class="pagination"></ul>
+                        </div>
+                    </div>
+
+                </div>
+
+                <!--<div class="panel-footer">
+                    <div id="err">
+                        <h3>Error Log</h3>
+                    </div>
+                </div>-->
+
+            </div>
+        </div>
+    </div>
+</div>
+</body>
+</html>

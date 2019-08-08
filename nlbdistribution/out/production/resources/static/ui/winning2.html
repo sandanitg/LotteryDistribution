@@ -1,0 +1,665 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Winning Number Management</title>
+    <link rel="stylesheet" href="../plugin/bootstrap/css/bootstrap.min.css"/>
+    <script src="../plugin/jquery/jquery.min.js"></script>
+    <script src="../plugin/bootstrap/js/bootstrap.min.js"></script>
+
+    <link rel="stylesheet" href="../style/common.css"/>
+    <script src="../script/common.bitproject.earth.lk.v1.js"></script>
+    <script src="../script/ui.bitproject.earth.lk.v1.js"></script>
+
+
+    <script>
+
+        window.addEventListener("load", initialize);
+
+        //Initializing Functions
+
+        function initialize(){
+
+            btnAdd.addEventListener("click",btnAddMC);
+            btnClear.addEventListener("click",btnClearMC);
+            btnUpdate.addEventListener("click",btnUpdateMC);
+            btnDelete.addEventListener("click",btnDeleteMC);
+
+            txtValue.addEventListener("keyup",txtValueKU);
+
+            btnAddValue.addEventListener("click",btnAddValueMC);
+            // btnSearchClear.addEventListener("click",btnSearchClearMC);
+
+            winningnumbers = httpRequest("../winningnumbers/list","GET");
+            employees = httpRequest("../employees/list","GET");
+            lotterytypes = httpRequest("../lotterytypes/list","GET");
+
+            cmbLotterytype.addEventListener("change",cmbLotterytypeCH);
+            cmbLottery.addEventListener("change",cmbLotteryCH);
+            cmbDigitoption.addEventListener("change",cmbDigitoptionCH);
+
+            valid = "lightgreen";
+            invalid = "pink";
+            initial = "white";
+            updated = "khaki";
+            active = "khaki";
+
+            loadView();
+            loadForm();
+
+
+        }
+
+        function loadView() {
+
+            //Search Area
+            //txtSearchDigitformat.value="";
+            /*    fillCombo(cmbSearchRole,"Role",roles,"name","");
+                fillCombo(cmbSearchUserstatus,"Status",userstatuses,"name","");
+                cmbSearchUserstatus.style.background = "";
+                cmbSearchRole.style.background = "";*/
+            //txtSearchDigitformat.style.background = "";
+
+            //Table Area
+            activerowno = "";
+            activepage = 1;
+            loadTable(1,cmbPageSize.value,"");
+
+        }
+
+        function loadTable(page,size,query) {
+            page = page - 1;
+            winnings = new Array();
+            var data = httpRequest("/winnings?page="+page+"&size="+size+query,"GET");
+            winnings = data.content;
+            createPagination('pagination',data.totalPages, data.number+1,paginate);
+            fillTable('tblWinning',winnings,fillForm);
+            clearSelection(tblWinning);
+            if(activerowno!="")selectRow(tblWinning,activerowno,active);
+            window.location.href="#ui";
+        }
+
+        function paginate(page) {
+            var paginate;
+             if(oldwinning==null){
+                 paginate=true;
+             }else{
+                 if(getErrors()==''&&getUpdates()==''){
+                     paginate=true;
+                 }else{
+                     paginate = window.confirm("Form has Some Errors or Update Values. " +
+                         "Are you sure to discard that changes ?");
+                 }
+             }
+             if(paginate) {
+                 activepage=page;
+                 activerowno="";
+                 loadSearchedTable();
+                 loadForm();
+             }
+
+        }
+
+
+
+        function loadForm() {
+
+            winning = new Object();
+            oldwinning = null;
+
+            winning.winningnumberList = new Array();
+
+
+            fillCombo(cmbLotterytype,"Select Lottery Type",lotterytypes,"name","");
+            fillCombo(cmbLottery,"Select Lottery","","name","");
+            fillCombo(cmbDraw,"Select Draw","","no","");
+           // fillCombo(cmbEmployeeCreated,"Employee",employees,"callingname","");
+
+            fillCombo(cmbEmployeeCreated,"Logged Employee",employees,"callingname",session.getObject("user").employeeId.callingname);
+            winning.employeeId=JSON.parse(cmbEmployeeCreated.value);
+
+
+             var today = new Date();
+             var month = today.getMonth()+1;
+             if(month<10) month = "0"+month;
+             var date = today.getDate()+1;
+             if(date<10) date = "0"+date;
+
+             dteDOCreated.value=today.getFullYear()+"-"+month+"-"+date;
+
+            //user.docreation=dteDOCreated.value;
+            //user.employeeCreatedId=JSON.parse(cmbEmployeeCreated.value);
+            // user.userstatusId=JSON.parse(cmbUserstatus.value);
+
+
+            dteDOCreated.value="";
+
+            setStyle(initial);
+            refreshInnerForm();
+            dteDOCreated.style.background=valid;
+            cmbEmployeeCreated.style.background=valid;
+            cmbEmployeeCreated.disabled="disabled";
+
+            disableButtons(false, true, true);
+
+        }
+
+
+        function refreshInnerForm() {
+          //  fillCombo(cmbDigitoption,"Select Digit Option","","name","");
+            txtValue.value="";
+            txtValue.style.background=initial;
+
+
+            fillInnerTable("tblWin",winning.winningnumberList,removewinningnumberList);
+        }
+
+
+        function removewinningnumberList(winning,index) {
+            winning.winningnumberList.splice(index-1, 1);
+            refreshInnerForm();
+        }
+
+        function cmbLotterytypeCH() {
+
+            if (cmbLotterytype.value != "Select Lottery Type") {
+
+                lotteries = httpRequest("../lotteries/list/bylotterytype?lotterytypeid=" +
+                    JSON.parse(cmbLotterytype.value).id , "GET");
+                fillCombo(cmbLottery, "Select a Lottery", lotteries, "name", "");
+
+
+                digitoptions = httpRequest("../lotterytypedigitoptions/list/bylotterytype?lotterytypeid=" +
+                    JSON.parse(cmbLotterytype.value).id , "GET");
+                fillCombo2(cmbDigitoption, "Select Digit Option", digitoptions, "digitoptionId","","name");
+            }
+
+        }
+
+        function cmbLotteryCH() {
+
+
+            if (cmbLottery.value != "Select Lottery") {
+                draws = httpRequest("../draws/list/bylotteryn?lotteryid=" +
+                    JSON.parse(cmbLottery.value).id, "GET");
+                fillCombo(cmbDraw, "Select a Draw", draws, "no", "");
+            }
+        }
+
+        function cmbDigitoptionCH() {
+
+            cmbDigitoption.style.background=valid;
+
+        }
+
+        function setStyle(style) {
+
+            cmbLotterytype.style.background = style;
+            cmbLottery.style.background = style;
+            cmbDraw.style.background = style;
+            dteDOCreated.style.background = style;
+            cmbEmployeeCreated.style.background = style;
+
+            txtValue.style.background= style;
+            cmbDigitoption.style.background= style;
+        }
+
+        function disableButtons(add, upd, del) {
+
+            /* if (add) btnAdd.setAttribute("disabled", "disabled");
+             else btnAdd.removeAttribute("disabled");
+
+             if (upd) btnUpdate.setAttribute("disabled", "disabled");
+             else btnUpdate.removeAttribute("disabled");
+
+             if (del) btnDelete.setAttribute("disabled", "disabled");
+             else btnDelete.removeAttribute("disabled");*/
+
+        }
+
+
+        // Binding and Validation Functions for Non-Regex-Based
+        // When Regex-Based default validation is used, programmers do not need to define these functions
+        // Default Validation and Binding is coded in "ui.bitproject.earth.lk.js"
+
+
+        function btnAddValueMC() {
+
+            win = new Object();
+            win.val = txtValue.value.trim();
+            win.lotterytypedigitoptionId = JSON.parse(cmbDigitoption.value);
+
+            if(txtValue.value==""){
+                window.alert("You Haven't enter a Value");
+            }
+            else {
+                winning.winningnumberList.push(win);
+            }
+            refreshInnerForm();
+        }
+
+
+
+        function txtValueKU() {
+            var pattern = new RegExp('([a-zA-Z0-9]{1,3})$');
+            var val = txtValue.value.trim();
+            if(pattern.test(val)) {
+                txtValue.style.background = valid;
+            }
+            else
+            {
+                txtValue.style.background = invalid;
+            }
+        }
+
+
+        //Form Operation Functions
+
+        function getErrors(){
+
+            var errors = "";
+
+            if (winning.lotterytypeId == null)
+                errors = errors + "\n" + "Lottery Type is Not Selected";
+
+            if (winning.lotteryId == null)
+                errors = errors + "\n" + "Lottery is Not Selected";
+
+            if  (winning.drawId == null)
+                errors = errors + "\n" +  "Draw is Not Selected";
+
+            if (winning.winningnumberList.length == 0)
+                errors = errors + "\n" + "Winning Numbers are not Selected";
+
+            if (winning.date == null)
+                errors = errors + "\n" + "Date is Not Selected";
+
+            if (winning.employeeId == null)
+                errors = errors + "\n" + "Employee is Not Selected";
+
+            return errors;
+        }
+
+        function btnAddMC() {
+
+            var errors = getErrors();
+
+            if (errors == "") {
+
+                var option = window.confirm("Are you sure to add following Winning Numbers?\n" +
+                    "\nLottery Type : " + winning.lotterytypeId.name +
+                    "\nLottery Name : " + winning.lotteryId.name +
+                    "\nDraw No : " + winning.drawId.no +
+                    "\nWinning Numbers : " + winning.winningnumberList.length+
+                    "\nEmployee : " + winning.employeeId.callingname
+                );
+                if (option == true) {
+                    var response = httpRequest("/winnings", "POST", winning);
+                    if (response == "0") {
+                        toast("<strong>Success !</strong> Saved Successfully", "success");
+                        loadForm();
+                        activerowno = 1;
+                        // loadSearchedTable();
+                        loadView();
+                    }
+                    else window.alert("Failed to Add as \n\n"+response);
+                }
+            }
+            else
+                window.alert("You have following Errors\n"+errors);
+        }
+
+
+
+        function btnClearMC() {
+            //Get Cofirmation from the User window.confirm();
+
+            /*var clear;
+            if(oldlotterytype==null){
+                clear=true;
+            }else{
+                if(getErrors()==''&&getUpdates()==''){
+                    clear=true;
+                }else{
+                    clear = window.confirm("Form has Some Errors or Update Values. " +
+                        "Are you sure to discard that changes ?");
+                }
+            }
+            if(clear) {
+                loadForm();
+                clearSelection(tblLotterytype);
+            }
+
+
+*/
+
+        }
+
+        function fillForm(lt,rowno) {
+
+            var filling;
+            if (oldwinning == null) {
+                filling = true;
+            } else {
+
+                if (getErrors() == '' && getUpdates() == '') {
+                    filling = true;
+                } else {
+                    filling = window.confirm("Form has Some Errors or Update Values. " +
+                        "Are you sure to discard that changes ?");
+                }
+            }
+
+            if (filling) {
+
+                activerowno = rowno;
+
+                clearSelection(tblWinning);
+                selectRow(tblWinning, activerowno, active);
+
+                winning = JSON.parse(JSON.stringify(lt));
+                oldwinning = JSON.parse(JSON.stringify(lt));
+
+
+                /*txtName.value = lotterytype.name;
+                txtName.disabled="disabled";
+                txtDigitformat.value = lotterytype.digitformat;
+                dteDOCreated.value = lotterytype.date;
+                dteDOCreated.disabled="disabled";
+                txtDescription.value = lotterytype.description;*/
+
+                fillCombo(cmbLotterytype, "", lotterytypes, "name", winning.drawId.lotteryId.lotterytypeId.name);
+
+                lotteries = httpRequest("../lotteries/list/bylotterytype?lotterytypeid="+winning.lottteryId.lotterytypeId.id, "GET");
+                fillCombo(cmbLottery, "Select Lottery", lotteries, "name", winning.drawId.lotteryId.name);
+
+                /*draws = httpRequest("../cities/list/bydistrict?districtid="+winning.drawId.lotterytypeId.id, "GET");
+                fillCombo(cmbDraw, "Select Draw", draws, "no", winning.drawId.no);
+*/
+
+                fillCombo(cmbLotterytypestatus, "", lotterytypestatuses, "name", lotterytype.lotterytypestatusId.name);
+
+                refreshInnerForm();
+
+                disableButtons(true, false, false);
+                setStyle(valid);
+
+            }
+        }
+
+
+        function getUpdates() {
+
+           /* var updates = "";
+
+            if(lotterytype!=null && oldlotterytype!=null) {
+
+                if (isEqual(lotterytype.prizeList,oldlotterytype.prizeList,"prizeId"))
+                    updates = updates + "\nPrizes are Changed";
+
+                if (isEqual(lotterytype.lotterytypedigitoptionList,oldlotterytype.lotterytypedigitoptionList,"digitoptionId"))
+                    updates = updates + "\nDigit Options are Changed";
+
+                if (lotterytype.digitformat != oldlotterytype.digitformat)
+                    updates = updates + "\nDigit Format is Changed";
+
+                if (lotterytype.digitsizeId.name != oldlotterytype.digitsizeId.name)
+                    updates = updates + "\nDigit Size is Changed";
+
+                if (lotterytype.lotterytypestatusId.name != oldlotterytype.lotterytypestatusId.name)
+                    updates = updates + "\nLottery Type Status is Changed";
+
+                if (lotterytype.date != oldlotterytype.date)
+                    updates = updates + "\nDate is Changed";
+
+            }
+
+            return updates;*/
+
+        }
+
+        function btnUpdateMC() {
+            /*var errors = getErrors();
+            if (errors == "") {
+                var updates = getUpdates();
+                if (updates == "") window.alert("Nothing Updated!");
+                else {
+                    var option = window.confirm("\n\nAre your sure to update followings ! \n\n" + updates);
+                    if(option==true) {
+                        var response = httpRequest("/lotterytypes","PUT",lotterytype);
+                        if(response=="0"){
+                            toast("<strong>Success !</strong> Updated Successfully","success");
+                            loadForm();
+                            //loadSearchedTable();
+                            loadView();
+                        }
+                        else window.alert("Failed to Update as \n\n"+response);
+                    }
+                }
+            }
+            else
+                window.alert("You have following errors in your form\n\n"+getErrors());*/
+        }
+
+        function btnDeleteMC() {
+
+            /*var option = window.confirm("\n\nAre your sure to delete following ! \n\n" +
+                "Lottery Type : " +lotterytype.name+ "\nDigit Format : " +lotterytype.digitformat);
+
+            if(option==true) {
+                var response = httpRequest("/lotterytypes","DELETE",lotterytype);
+                if(response=="0"){
+                    toast("<strong>Success !</strong> Deleted Successfully","success");
+                    loadForm();
+                    //  loadSearchedTable();
+                    loadView();
+
+                }
+                else window.alert("Failed to Delete as \n\n"+response);
+            }
+*/
+        }
+
+
+        //Search Functions
+
+        function loadSearchedTable(){
+
+            //var digitformat = txtSearchDigitformat.value.trim();
+            /*  var role = cmbSearchRole.value;
+              var userstatus = cmbSearchUserstatus.value;
+
+              var roleid="";
+              if(role!="Role")
+              { roleid = JSON.parse(role).id;
+                  cmbSearchRole.style.background = active;}
+
+              var userstatusid="";
+              if(userstatus!="Status")
+              {  userstatusid = JSON.parse(userstatus).id;
+                  cmbSearchUserstatus.style.background = active; }
+  */
+            //if(digitformat!=""){  txtSearchDigitformat.style.background = active; }
+
+            //var query ="";
+
+          //  if(digitformat!="" )
+             //   query = "&digitformat=" + digitformat;
+
+            /*if(username!="" || roleid!="" || userstatusid!="" )
+                query = "&username=" + username + "&roleid=" + roleid + "&userstatusid=" + userstatusid;
+*/
+
+            //window.alert(query);
+            //loadTable(activepage, cmbPageSize.value, query);
+
+        }
+
+        function btnSearchMC(){
+            /*activepage=1;
+            loadSearchedTable();*/
+        }
+
+        function btnSearchClearMC(){
+            //loadView();
+        }
+
+
+    </script>
+
+
+
+
+</head>
+<body>
+<div class="container-fluid" >
+    <div class="row" id="ui">
+        <div class="col-md-12" >
+            <div class="panel panel-primary" style="margin-top: 10px; ">
+                <div class="panel-heading" style="background-color:#000033">
+                    <h3>Winning Number Management</h3>
+                </div>
+                <div class="panel-body">
+                    <div class="row">
+
+                        <div class="col-md-6" id="form" >
+                            <form class="form-horizontal" onsubmit="return false" id="winningform" >
+
+                                <script>
+
+                                    // Defining UI-Componnets and Layouts
+                                    // Default UI-Componnets and Layouts is coded in "ui.bitproject.earth.lk.js"
+
+                                    comboBox('winningform','cmbLotterytype','Lottery Type',4,'winning','lotterytypeId','oldwinning');
+                                    comboBox('winningform','cmbLottery','Lottery Name',4,'winning','lotteryId','oldwinning');
+                                    comboBox('winningform','cmbDraw','Draw No',4,'winning','drawId','oldwinning');
+
+
+
+                                </script>
+
+                                <div id="innerform" style="background-color: rgba(0,0,255,0.1); padding:20px 10px;margin-bottom: 15px">
+
+                                    <script>
+
+                                        comboBox('innerform','cmbDigitoption','Digit Option',4,'','','');
+
+                                    </script>
+
+                                    <div class="form-group">
+                                        <label class="control-label col-md-4" for="txtValue">Value</label>
+                                        <div class="col-md-8">
+                                            <input type="text" id="txtValue" placeholder="Enter Value Here" class="form-control"/>
+                                        </div>
+                                    </div>
+
+
+                                    <div class="text-right" style="margin-bottom: 10px">
+                                        <input class="btn btn-primary btn-sm" type="button" id="btnAddValue" value="Add" style=""/>
+                                    </div>
+                                    <div class="row">
+                                        <div class="table-responsive col-md-8 col-md-offset-4" id="tableInnerParent">
+                                            <script>
+
+                                                function getDigitColumn(ob) {
+
+                                                    return ob.lotterytypedigitoptionId.digitoptionId.name;
+                                                }
+
+
+                                                var metadatainnertable = [
+                                                    {name:'Digit Options',search:false,datatype:'text',property:getDigitColumn},
+                                                    {name:'Value',search:false,datatype:'text',property:'val'}
+                                                ];
+
+                                                tableForInnerForm("tableInnerParent","tblWin",metadatainnertable,true);
+                                            </script>
+                                        </div>
+                                    </div>
+                                </div>
+
+
+
+                                <script>
+
+
+
+                                    dateField('winningform','dteDOCreated','Created Date','Select Created Date',4,"",'winning','date','oldwinning');
+                                    comboBox('winningform','cmbEmployeeCreated','Employee Created',4,'winning','employeeId','oldwinning');
+
+
+                                    // Custom UI-Componnets and Layouting
+
+                                    // invoiceitemList
+
+                                </script>
+
+                                <div class="text-right">
+                                    <input class="btn btn-danger btn-sm" type="button" id="btnDelete" value="Delete" style="width: 15%"/>
+                                    <input class="btn btn-warning btn-sm" type="button" id="btnUpdate" value="Update" style="width: 15%"/>
+                                    <input class="btn btn-success btn-sm" type="button" id="btnAdd" value="Add" style="width: 17%"/>
+                                    <input class="btn btn-warning btn-sm" type="button" id="btnClear" value="Clear" style="width: 15%"/>
+                                </div>
+
+
+                            </form>
+                        </div>
+
+
+                        <div class="col-md-1"></div>
+                        <div class="col-md-5" id="lotterytypeview">
+
+                            <form class="form-inline" onsubmit="return false">
+                                <div class="form-group form-group-sm">
+                                    <input placeholder="Search By Digit Format" class="form-control" type="text" id="txtSearchDigitformat"/>
+                                </div>
+
+                                <!--<div class="form-group form-group-sm">
+                                    <select class="form-control" id="cmbSearchRole"></select>
+                                </div>
+                                <div class="form-group form-group-sm">
+                                    <select class="form-control" id="cmbSearchUserstatus"></select>
+                                </div>-->
+                                <input type="button" class="btn btn-warning btn-sm" value="Clear Search" id="btnSearchClear"/>
+                                <input type="button" class="btn btn-success btn-sm" value="Search" id="btnSearch"/>
+                            </form>
+                            <hr/>
+
+
+                            <div class="table-responsive" id="tableParent">
+
+                                <script>
+
+                                    function getValColumn(ob) {
+                                        var v="";
+                                        for(x in ob.winningnumberList)
+                                            v = v + (v==""?"":", ") +ob.winningnumberList[x].val;
+                                        return v;
+                                    }
+                                    var metadata = [
+                                        {name:'Lottery type',search:true,datatype:'text',property:'drawId.lotteryId.lotterytypeId.name'},
+                                        {name:'Winning Numbers',search:true,datatype:'text',property:getValColumn},
+                                        {name:'Draw No',search:true,datatype:'text',property:'drawId.no'}
+                                       // {name:'Status',search:true,datatype:'text',property:'lotterytypestatusId.name'}
+                                    ];
+
+                                    table("tableParent","tblWinning",metadata,[10,15,30,500,1000],btnSearchMC,true);
+
+                                </script>
+
+
+                            </div>
+                            <ul id="pagination" class="pagination"></ul>
+
+                        </div>
+                    </div>
+                </div>
+
+                <div class="panel-footer"><div id="err"><h3>Error Log</h3></div></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+</body>
+</html>

@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+
+    <meta charset="UTF-8">
+    <title>Lottery Distribution Management System</title>
+
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="../bootstrap/css/bootstrap.min.css">
+    <link rel="stylesheet" href="../fonts/font-awesome.min.css">
+    <link rel="stylesheet" href="../fonts/material-icons.min.css">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Source+Sans+Pro:300,400,700">
+    <link rel="stylesheet" href="../style/Features-Boxed.css">
+    <link rel="stylesheet" href="../style/Header-Blue.css">
+    <link rel="stylesheet" href="../style/styles.css">
+
+    <link rel="stylesheet" href="../plugin/bootstrap/css/bootstrap.min.css"/>
+    <script src="../plugin/jquery/jquery.min.js"></script>
+    <script src="../plugin/bootstrap/js/bootstrap.min.js"></script>
+
+    <link rel="stylesheet" href="../style/common.css"/>
+    <script src="../script/common.bitproject.earth.lk.v1.js"></script>
+    <script src="../script/ui.bitproject.earth.lk.v1.js"></script>
+
+
+    <script>
+
+        window.addEventListener("load", initialize);
+
+        function initialize() {
+            spnUsername.innerHTML = " "+session.getObject("user").employeeId.fullname;
+           laodUi("home");
+
+        }
+
+        function laodUi(ui) {
+            frmMainWindow.src = 'http://localhost:8080/ui/' + ui;
+        }
+
+        function changePassword() {
+            if (window.confirm("Do you need to change the Password ?")) {
+                cookie.setValue("username", "", 1);
+                cookie.setValue("password", "", 1);
+                session.setObject("user", new Object());
+                window.open("changepassword", "_self");
+            }
+        }
+
+
+        function logout() {
+                if(window.confirm("Do you need to logout ?")) {
+
+
+                    ajax = new XMLHttpRequest();
+                    ajax.open("PUT", "/session", false);
+                   // ajax.setRequestHeader("Content-type", "application/x-www-form-urlencoded");
+                    ajax.send();
+                    err.innerHTML=err.innerHTML+ajax.responseText;
+                    if(ajax.status==200 && ajax.responseText!="") {
+                        responce = ajax.responseText;
+                        cookie.setValue("username", "", 1);
+                        cookie.setValue("password", "", 1);
+                        session.setObject("user", new Object());
+                        window.alert(responce);
+
+                        window.open("login", "_self");
+                    }
+                    else
+                        window.alert("Failed to logout");
+
+
+                }
+        }
+
+       $(document).ready(function () {
+            $('ul.nav li.dropdown').hover(function () {
+                $(this).find('.dropdown-menu').stop(true, true).delay(200).fadeIn(10);
+            }, function () {
+                $(this).find('.dropdown-menu').stop(true, true).delay(200).fadeOut(10);
+            });
+       });
+
+
+    </script>
+
+
+</head>
+<body>
+
+
+
+
+<nav class="navbar navbar-inverse" style="border-radius: 0 !important; margin-bottom: 0px; background-color:#000033
+">
+    <div class="container-fluid">
+
+        <div class="navbar-header">
+            <img style="margin:0 25px 0 15px;" height="100" width="325" src="../image/bnr.png"/>
+        </div>
+
+        <ul class="nav navbar-nav">
+
+            <!--<li onclick="laodUi('home')" class="active"><a href="#">Home</a></li>-->
+
+            <li class="dropdown">
+                <a class="dropdown-toggle" data-toggle="dropdown" href="#">Admin<span class="caret"></span></a>
+                <ul class="dropdown-menu">
+                    <li onclick="laodUi('employee')"><a>Employee</a></li>
+                    <li onclick="laodUi('user')"><a>User</a></li>
+                    <li onclick="laodUi('previlage')"><a>Privilages</a></li>
+                    <li onclick="laodUi('designation')"><a>Designation</a></li>
+                    <li onclick="laodUi('gender')"><a>Gender</a></li>
+                    <li onclick="laodUi('civilstatus')"><a>Civilstatus</a></li>
+                    <li onclick="laodUi('employeestatus')"><a>Employeestatus</a></li>
+                    <li onclick="laodUi('userstatus')"><a>Userstatus</a></li>
+                </ul>
+            </li>
+
+            <li class="dropdown">
+                <a class="dropdown-toggle" data-toggle="dropdown" href="#">Lottery Management<span class="caret"></span></a>
+                <ul class="dropdown-menu">
+                    <li onclick="laodUi('lotterytype')"><a>Lottery Type Introduction</a></li>
+                    <li onclick="laodUi('lottery')"><a>Lottery Namings</a></li>
+                    <li onclick="laodUi('draw')"><a>Registering Draw</a></li>
+                </ul>
+            </li>
+
+            <li class="dropdown">
+                <a class="dropdown-toggle" data-toggle="dropdown" href="#">Dealer Area<span class="caret"></span></a>
+                <ul class="dropdown-menu">
+                    <li onclick="laodUi('dealer')"><a>Dealer Registration</a></li>
+                    <li onclick="laodUi('lotteryorder')"><a>Make Order</a></li>
+                    <li onclick="laodUi('supplier')"><a>Return Order</a></li>
+                </ul>
+            </li>
+
+        </ul>
+
+        <ul class="nav navbar-nav navbar-right">
+            <li><a href="#"> <span class="glyphicon glyphicon-user"> </span> <span id="spnUsername"> User </span> </a></li>
+            <li onclick="logout()"><a href="#"> <span class="glyphicon glyphicon-log-out"> </span> Logout </a></li>
+        </ul>
+
+    </div>
+</nav>
+
+<div class="features-boxed" style="padding-left:10px; padding-right:0px;">
+    <div class="container" style="background-image:url(&quot;../img/aaa.jpg&quot;);">
+        <div class="intro">
+            <p class="text-center">&nbsp;</p>
+        </div>
+        <div class="row justify-content-center features">
+            <div onclick="laodUi('lotterytype')" class="col-sm-3 col-sm-3 col-s-3 item"><a> </a>
+                <div class="box" style="background-color:#ccccff; opacity: 0.9;"><i class="fa fa-ticket icon"></i>
+                    <h3  class="name" style="font-size:28px;"><a>Lottery Type</a></h3>
+                    <p class="description">Lottery type introduction</p>
+                </div>
+            </div>
+            <div onclick="laodUi('lottery')" class="col-sm-3 col-sm-3 col-s-3 item"><a> </a>
+                <div class="box" style="background-color:#ccccff; opacity: 0.9;"><i class="fa fa-ticket icon"></i>
+                    <h3  class="name" style="font-size:28px;"><a>Lottery</a></h3>
+                    <p class="description">Naming Lotteries</p>
+                </div>
+            </div>
+            <div onclick="laodUi('draw')" class="col-sm-3 col-sm-3 col-s-3 item"><a> </a>
+                <div class="box" style="background-color:#ccccff; opacity: 0.9;"><i class="material-icons icon">monetization_on</i>
+                    <h3 class="name" style="font-size:28px;">Draw</h3>
+                    <p class="description">Conducting draws</p>
+                </div>
+            </div>
+            <div class="col-sm-3 col-sm-3 col-s-3 item"><a> </a>
+                <div class="box" style="background-color:#ccccff; opacity: 0.9;"><i class="fa fa-plane icon"></i>
+                    <h3 class="name" style="font-size:28px;">Winnings</h3>
+                    
+                    <p class="description">Winning details</p>
+                </div>
+            </div>
+            <div onclick="laodUi('dealer')" class="col-sm-3 col-sm-3 col-s-3 item"><a> </a>
+                <div class="box" style="background-color:#ccccff; opacity: 0.9;"><i class="fa fa-list-alt icon"></i>
+                    <h3 class="name" style="font-size:28px;">Dealer</h3>
+                    <p class="description">Dealer Registration</p>
+                </div>
+            </div>
+            <div onclick="laodUi('lotteryorder')" class="col-sm-3 col-sm-3 col-s-3 item"><a> </a>
+                <div class="box" style="background-color:#ccccff; opacity: 0.9;"><i class="fa fa-reorder icon"></i>
+                    <h3 class="name" style="font-size:28px;">Make Order</h3>
+                    <p class="description">Place an order</p>
+                </div>
+            </div>
+            <div class="col-sm-3 col-sm-3 col-s-3 item"><a> </a>
+                <div class="box" style="background-color:#ccccff; opacity: 0.9;"><i class="fa fa-plane icon"></i>
+                    <h3 class="name" style="font-size:28px;">Return Order</h3>
+                    
+                    <p class="description">Return an order</p>
+                </div>
+            </div>
+            
+        </div>
+    </div>
+</div>
+<script src="../script/jquery.min.js"></script>
+<script src="../bootstrap/js/bootstrap.min.js"></script>
+
+
+
+<iframe id="frmMainWindow" style="width:100%;height:605px;border:0;"></iframe>
+
+<div id="err"></div>
+
+
+</body>
+</html>

@@ -1,0 +1,601 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Draw Management</title>
+    <link rel="stylesheet" href="../plugin/bootstrap/css/bootstrap.min.css"/>
+    <script src="../plugin/jquery/jquery.min.js"></script>
+    <script src="../plugin/bootstrap/js/bootstrap.min.js"></script>
+
+    <link rel="stylesheet" href="../style/common.css"/>
+    <script src="../script/common.bitproject.earth.lk.v1.js"></script>
+    <script src="../script/ui.bitproject.earth.lk.v2.js"></script>
+
+    <style>
+
+        body{
+
+            /*background-image: url("../image/a.jpg") repeat;*/
+            background: url(../image/aaa.jpg) repeat;
+            opacity: 0.85;
+            filter: alpha(opacity=90);/* For IE8 and earlier */
+            background-size: cover;
+        }
+    </style>
+
+
+    <script>
+
+        window.addEventListener("load", initialize);
+
+        //Initializing Functions
+
+        function initialize() {
+
+            btnAdd.addEventListener("click",btnAddMC);
+            btnClear.addEventListener("click",btnClearMC);
+            btnUpdate.addEventListener("click",btnUpdateMC);
+            btnDelete.addEventListener("click",btnDeleteMC);
+            btnSearch.addEventListener("click",btnSearchMC);
+            btnSearchClear.addEventListener("click",btnSearchClearMC);
+
+            btnSetToDefault.addEventListener("click",btnSetToDefaultMC);
+
+            privilages = httpRequest("../privilages?module=DRAW","GET");
+
+            regexes = httpRequest("../regexes/draw","GET");
+            txtDrawno.setAttribute("data-pattern",regexes.no.regex);
+            txtPrintcount.setAttribute("data-pattern",regexes.printcount.regex);
+            //txtSuperprice.setAttribute("data-pattern",regexes.superprice.regex);
+            txtLocation.setAttribute("data-pattern",regexes.location.regex);
+
+            lotteries = httpRequest("../lotteries/list","GET");
+            employees = httpRequest("../employees/list","GET");
+            drawstatuses = httpRequest("../drawstatuses/list","GET");
+            supervisors = httpRequest("../supervisors/list","GET");
+
+
+            valid = "lightgreen";
+            invalid = "pink";
+            initial = "white";
+            updated = "khaki";
+            active = "khaki";
+
+            loadView();
+            loadForm();
+
+
+        }
+
+        function loadView() {
+
+            //Search Area
+            fillCombo(cmbSearchSupervisor, "Supervisor",supervisors,"name","");
+            fillCombo(cmbSearchLottery,"Lottery",lotteries,"name","");
+            fillCombo(cmbSearchDrawstatus," Draw Status",drawstatuses,"name","");
+            cmbSearchDrawstatus.style.background = "";
+            cmbSearchLottery.style.background = "";
+            cmbSearchSupervisor.style.background = "";
+
+            //Table Area
+            activerowno = "";
+            activepage = 1;
+           // loadTable(1,cmbPageSize.value,"");
+            loadTable(1,cmbPageSize.value,"&supervisorid=&lotteryid=&drawstatusid=");
+
+        }
+
+        function loadTable(page,size,query) {
+            page = page - 1;
+            draws = new Array();
+            var data = httpRequest("/draws?page="+page+"&size="+size+query,"GET");
+            if(data.content!= undefined) draws = data.content;
+            createPagination('pagination',data.totalPages, data.number+1,paginate);
+            fillTable('tblDraw',draws,fillForm);
+            clearSelection(tblDraw);
+            if(activerowno!="")selectRow(tblDraw,activerowno,active);
+            window.location.href="#ui";
+        }
+
+        function paginate(page) {
+            var paginate;
+            if(olddraw==null){
+                paginate=true;
+            }else{
+                if(getErrors()==''&&getUpdates()==''){
+                    paginate=true;
+                }else{
+                    paginate = window.confirm("Form has Some Errors or Update Values. " +
+                        "Are you sure to discard that changes ?");
+                }
+            }
+            if(paginate) {
+                activepage=page;
+                activerowno="";
+                loadSearchedTable();
+                loadForm();
+            }
+
+        }
+
+        function loadForm() {
+
+            draw = new Object();
+            olddraw = null;
+
+            draw.drawsupervisorList = new Array();
+            supervisorsright = new Array();
+            supervisorsleft = supervisors;
+
+            fillCombo(cmbLottery,"Select Lottery",lotteries,"name","");
+            fillCombo(cmbDrawstatus,"Select Drawstatus",drawstatuses,"name","Happening");
+            fillCombo(cmbEmployee,"Logged Employee",employees,"callingname",session.getObject("user").employeeId.callingname);
+            draw.employeeId=JSON.parse(cmbEmployee.value);
+
+            setListTransferData('drawsupervisor',supervisors);
+
+            var today = new Date();
+            var month = today.getMonth()+1;
+            if(month<10) month = "0"+month;
+            var date = today.getDate();
+            if(date<10) date = "0"+date;
+
+            dteDOCreated.value=today.getFullYear()+"-"+month+"-"+date;
+            draw.createddate=dteDOCreated.value;
+
+            dteDODraw.value=today.getFullYear()+"-"+month+"-"+date;
+            draw.date=dteDODraw.value;
+            /*draw.lotteryId=JSON.parse(cmbLottery.value);
+            draw.employeeId=JSON.parse(cmbEmployee.value);
+            draw.drawstatusId=JSON.parse(cmbDrawstatus.value);
+*/
+            txtDrawno.value = "";
+            txtPrintcount.value = "";
+            //txtSuperprice.value = "";
+            txtLocation.value = "";
+
+            setStyle(initial);
+            dteDOCreated.style.background=valid;
+            cmbDrawstatus.style.background=valid;
+            cmbEmployee.style.background=valid;
+            cmbLottery.style.background=valid;
+
+            disableButtons(false, true, true);
+            //cmbEmployee.disabled="disabled";
+        }
+
+        function setStyle(style) {
+
+            cmbLottery.style.background = style;
+            txtDrawno.style.background = style;
+            dteDODraw.style.background = style;
+            txtPrintcount.style.background = style;
+          //  txtSuperprice.style.background = style;
+            txtLocation.style.background = style;
+            cmbDrawstatus.style.background = style;
+            dteDOCreated.style.background = style;
+            cmbEmployee.style.background = style;
+
+        }
+
+        function disableButtons(add, upd, del) {
+
+           if (add || !privilages.add) btnAdd.setAttribute("disabled", "disabled");
+            else btnAdd.removeAttribute("disabled");
+
+            if (upd || !privilages.update) btnUpdate.setAttribute("disabled", "disabled");
+            else btnUpdate.removeAttribute("disabled");
+
+            if (del || !privilages.delete) btnDelete.setAttribute("disabled", "disabled");
+            else btnDelete.removeAttribute("disabled");
+
+
+        }
+
+
+        // Binding and Validation Functions for Non-Regex-Based
+        // When Regex-Based default validation is used, programmers do not need to define these functions
+        // Default Validation and Binding is coded in "ui.bitproject.earth.lk.js"
+
+        function btnSetToDefaultMC(){
+
+           /* var option = window.confirm("\n\nAre your sure to reset the password ! \n\n");
+            if(option==true) {
+                var defaultpassword = window.prompt("Enter Default Password");
+                user.password=defaultpassword;
+                var response = httpRequest("/resetpassword","PUT",user);
+                if(response=="0"){
+                    toast("<strong>Success !</strong> Updated Successfully","success");
+                    loadForm();
+                    loadSearchedTable();
+
+                }
+                else window.alert("Failed to Update as \n\n"+response);
+            }*/
+        }
+
+
+
+        //Form Operation Functions
+
+        function getErrors() {
+
+            var errors = "";
+
+            if (draw.lotteryId == null)
+                errors = errors + "\n" + "Lottery is Not Selected";
+
+            if (draw.no == null)
+                errors = errors + "\n" + regexes.no.message;
+
+            if (draw.date == null)
+                errors = errors + "\n" + "Draw Date is Not Selected";
+
+            if (draw.printcount == null)
+                errors = errors + "\n" + regexes.printcount.message;
+
+            /*if (draw.superprice == null)
+                errors = errors + "\n" + regexes.superprice.message;*/
+
+            if (draw.location == null)
+                errors = errors + "\n" + regexes.location.message;
+
+            if (draw.drawsupervisorList.length == 0)
+                errors = errors + "\n" + "Supervisors are Not Selected";
+
+            return errors;
+
+        }
+
+        function btnAddMC(){
+
+            var errors = getErrors();
+
+            if(errors==""){
+
+                var supervisorlist="";
+                for(x in draw.drawsupervisorList)
+                    supervisorlist = supervisorlist + (supervisorlist==""?"":", ") +draw.drawsupervisorList[x].supervisorId.name
+
+                var option = window.confirm("Are you sure to add following Draw ?\n" +
+                    "\nLottery : " + draw.lotteryId.name +
+                    "\nDraw No : " + draw.no +
+                    "\nDraw Date : " + draw.date +
+                    "\nPrint Count : " + draw.printcount +
+                    "\nLocation : "+ draw.location +
+                    "\nSupervisors : " + supervisorlist +
+                    "\nDraw Status : " + draw.drawstatusId.name );
+                   // "\nCreated By : " + draw.employeeId.callingname.name);
+                if(option==true) {
+                    var response = httpRequest("/draws","POST",draw);
+                    if(response=="0"){
+                        toast("<strong>Success !</strong> Saved Successfully","success");
+                        loadForm();
+                        activerowno = 1;
+                        loadSearchedTable();
+                    }
+                    else window.alert("Failed to Add as \n\n"+response);
+                }
+
+           }
+            else
+             window.alert("You have following Errors\n"+errors);
+
+        }
+
+        function btnClearMC() {
+
+            /*var clear;
+            if(olduser==null){
+                clear=true;
+            }else{
+                if(getErrors()==''&&getUpdates()==''){
+                    clear=true;
+                }else{
+                    clear = window.confirm("Form has Some Errors or Update Values. " +
+                        "Are you sure to discard that changes ?");
+                }
+            }
+            if(clear) {
+                loadForm();
+                clearSelection(tblUser);
+            }*/
+
+
+
+
+        }
+
+        function fillForm(dw,rowno){
+            activerowno = rowno;
+            var filling;
+            if(olddraw==null){
+                filling=true;
+            }else{
+
+                if(getErrors()==''&&getUpdates()==''){
+                    filling=true;
+                }else{
+                    filling = window.confirm("Form has Some Errors or Update Values. " +
+                        "Are you sure to discard that changes ?");
+                }
+            }
+
+            if(filling) {
+                setListTransferData('drawsupervisor',supervisors);
+
+                clearSelection(tblDraw);
+                selectRow(tblDraw,activerowno,active);
+
+                draw = JSON.parse(JSON.stringify(dw));
+                olddraw = JSON.parse(JSON.stringify(dw));
+
+                setListTransferValues('drawsupervisor',draw.drawsupervisorList);
+
+                txtDrawno.value = draw.no;
+                txtDrawno.disabled="disabled";
+                dteDODraw.value = draw.date;
+                txtPrintcount.value = draw.printcount;
+                txtLocation.value = draw.location;
+                dteDOCreated.disabled="disabled";
+
+                fillCombo(cmbEmployee, "", employees, "callingname", draw.employeeId.callingname);
+                fillCombo(cmbDrawstatus, "", drawstatuses, "name", draw.drawstatusId.name);
+                fillCombo(cmbLottery, "", lotteries, "name", draw.lotteryId.name);
+                cmbEmployee.disabled="disabled";
+                cmbLottery.disabled="disabled";
+
+                disableButtons(true, false, false);
+                setStyle(valid);
+            }
+
+        }
+
+        function getUpdates() {
+
+            var updates = "";
+
+            if(draw!=null && olddraw!=null) {
+
+                if (isEqual(draw.drawsupervisorList,olddraw.drawsupervisorList,"supervisorId"))
+                    updates = updates + "\nSupervisors are Changed";
+
+                if (draw.printcount != olddraw.printcount)
+                    updates = updates + "\nPrint Count is Changed";
+
+                if (draw.location != olddraw.location)
+                    updates = updates + "\nLocation is Changed";
+
+                if (draw.drawstatusId.name != olddraw.drawstatusId.name)
+                    updates = updates + "\nDraw Status is Changed";
+
+                if (draw.date != olddraw.date)
+                    updates = updates + "\nDate is Changed";
+            }
+
+            return updates;
+
+        }
+
+        function btnUpdateMC() {
+            var errors = getErrors();
+            if (errors == "") {
+                var updates = getUpdates();
+                if (updates == "") window.alert("Nothing Updated!");
+                else {
+
+                    var option = window.confirm("\n\nAre your sure to update followings ! \n\n" + updates);
+                    if(option==true) {
+                        var response = httpRequest("/draws","PUT",draw);
+                        if(response=="0"){
+                            toast("<strong>Success !</strong> Updated Successfully","success");
+                            loadForm();
+                            loadSearchedTable();
+
+                        }
+                        else window.alert("Failed to Update as \n\n"+response);
+                    }
+                }
+            }
+            else
+                window.alert("You have following errors in your form\n\n"+getErrors());
+        }
+
+        function btnDeleteMC() {
+
+
+            var option = window.confirm("\n\nAre your sure to delete following ! \n\n" +
+                "Draw No : " +draw.no+ "\nLottery : " +draw.lotteryId.name);
+
+            if(option==true) {
+                var response = httpRequest("/draws","DELETE",draw);
+                if(response=="0"){
+                    toast("<strong>Success !</strong> Deleted Successfully","success");
+                    //employeeswithoutusers = httpRequest("../datalists/employeeswithoutusers","GET");
+                    loadForm();
+                    loadSearchedTable();
+                    loadView();
+
+                }
+                else window.alert("Failed to Delete as \n\n"+response);
+            }
+
+        }
+
+
+        //Search Functions
+
+        function loadSearchedTable(){
+
+            var supervisor = cmbSearchSupervisor.value;
+            var lottery = cmbSearchLottery.value;
+            var drawstatus = cmbSearchDrawstatus.value;
+
+            var supervisorid="";
+            if(supervisor!="Supervisor")
+            { supervisorid = JSON.parse(supervisor).id;
+                cmbSearchSupervisor.style.background = active;}
+
+
+            var lotteryid="";
+            if(lottery!="Lottery")
+            { lotteryid = JSON.parse(lottery).id;
+                cmbSearchLottery.style.background = active;}
+
+            var drawstatusid="";
+            if(drawstatus!="Status")
+            { drawstatusid = JSON.parse(drawstatus).id;
+                cmbSearchDrawstatus.style.background = active; }
+
+
+            var query ="&supervisorid=&lotteryid=&drawstatusid=";
+
+
+            if(supervisorid!="" || lotteryid!="" || drawstatusid!="" )
+              query = "&supervisorid=" + supervisorid + "&lotteryid=" + lotteryid + "&drawstatusid=" + drawstatusid;
+
+
+            // window.alert(query);
+            loadTable(activepage, cmbPageSize.value, query);
+
+        }
+
+        function btnSearchMC(){
+            activepage=1;
+            loadSearchedTable();
+            loadTable(1,cmbPageSize.value,"");
+
+        }
+
+        function btnSearchClearMC(){
+            loadView();
+        }
+
+
+    </script>
+
+
+
+
+</head>
+<body>
+<div class="container-fluid">
+    <div class="row" id="ui">
+        <div class="col-md-12">
+            <div class="panel panel-primary" style="margin-top: 10px;">
+                <div class="panel-heading" style="background-color: #000033;">
+                    <img style="margin:0 25px 0 15px; display: inline" height="100" width="100" src="../image/logo.png"/>
+                    <h3 style="display: inline">Draw Registration</h3>
+                </div>
+
+        <div class="panel-body">
+            <div class="row">
+
+                <div class="col-md-4" id="form">
+                    <form class="form-horizontal" onsubmit="return false" id="drawform" >
+
+                        <script>
+
+                            // Defining UI-Componnets and Layouts
+                            // Default UI-Componnets and Layouts is coded in "ui.bitproject.earth.lk.js"
+
+                            comboBox('drawform','cmbLottery','Lottery',4,'draw','lotteryId','olddraw');
+                            textField('drawform','txtDrawno','Draw No','Enter Draw No Here','',4,"",'draw','no','olddraw');
+                            dateField('drawform','dteDODraw','Draw Date','Select Draw Date',4,"",'draw','date','olddraw');
+
+                            textField('drawform','txtPrintcount','Print Count','Enter Print Count Here','',4,"",'draw','printcount','olddraw');
+                            //textField('drawform','txtSuperprice','Super Price','Enter Super Price Here','',4,"",'draw','superprice','olddraw');
+                            textField('drawform','txtLocation','Location','Enter Location Here','',4,"",'draw','location','olddraw');
+                            comboBox('drawform','cmbDrawstatus','Draw Status',4,'draw','drawstatusId','olddraw');
+
+
+                            // Custom UI-Componnets and Layouting
+
+                            listTransfer('drawform','drawsupervisor','Supervisors',4,'draw','olddraw','drawsupervisorList','supervisorId');
+                            dateField('drawform','dteDOCreated','Created Date','Select Created Date',4,"",'draw','createddate','olddraw');
+                            comboBox('drawform','cmbEmployee','Employee Created',4,'draw','employeeId','olddraw');
+
+
+                            //List-Transfer Functions
+
+
+
+                        </script>
+
+
+                        <div class="text-right">
+                            <input class="btn btn-danger btn-sm" type="button" id="btnDelete" value="Delete" style="width: 15%"/>
+                            <input class="btn btn-warning btn-sm" type="button" id="btnUpdate" value="Update" style="width: 15%"/>
+                            <input class="btn btn-success btn-sm" type="button" id="btnAdd" value="Add" style="width: 17%"/>
+                            <input class="btn btn-warning btn-sm" type="button" id="btnClear" value="Clear" style="width: 15%"/>
+                        </div>
+
+                        <div class="text-right">
+                            <input class="btn btn-danger btn-sm" type="button" id="btnSetToDefault" value="Set to Default" style="width: 65%; margin-top: 10px; margin-bottom: 10px;"/>
+                        </div>
+
+
+                    </form>
+                </div>
+
+
+                <div class="col-md-1"></div>
+                <div class="col-md-7" id="drawview">
+
+                    <form class="form-inline" onsubmit="return false">
+
+                        <div class="form-group form-group-sm">
+                            <select class="form-control" id="cmbSearchSupervisor"></select>
+                        </div>
+
+                        <div class="form-group form-group-sm">
+                            <select class="form-control" id="cmbSearchLottery"></select>
+                        </div>
+                        <div class="form-group form-group-sm">
+                            <select class="form-control" id="cmbSearchDrawstatus"></select>
+                        </div>
+                        <input type="button" class="btn btn-warning btn-sm" value="Clear Search" id="btnSearchClear"/>
+                        <input type="button" class="btn btn-success btn-sm" value="Search" id="btnSearch"/>
+                    </form>
+                    <hr/>
+
+
+                    <div class="table-responsive" id="tableParent">
+
+                        <script>
+
+                            function getSupervisorColumn(ob) {
+                                var supervisorlist="";
+                                for(x in ob.drawsupervisorList)
+                                    supervisorlist = supervisorlist + (supervisorlist==""?"":", ") +ob.drawsupervisorList[x].supervisorId.name
+                                return supervisorlist;
+                            }
+
+                            var metadata = [
+                                {name:'Lottery',search:true,datatype:'text',property:'lotteryId.name'},
+                                {name:'Draw No',search:true,datatype:'text',property:'no'},
+                                {name:'Draw Date',search:true,datatype:'text',property:'date'},
+                                {name:'Supervisors',search:true,datatype:'text',property:getSupervisorColumn},
+                                {name:'Draw Status',search:true,datatype:'text',property:'drawstatusId.name'}
+                            ];
+
+                            table("tableParent","tblDraw",metadata,[5,10,15,30,500,1000],btnSearchMC);
+
+                        </script>
+
+
+                    </div>
+                    <ul id="pagination" class="pagination"></ul>
+
+                </div>
+            </div>
+        </div>
+
+        <!--<div class="panel-footer">
+            <div id="err"><h3>Error Log</h3></div></div>
+    </div>-->
+</div>
+
+
+</body>
+</html>

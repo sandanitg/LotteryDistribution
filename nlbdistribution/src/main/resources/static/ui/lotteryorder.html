@@ -1,0 +1,608 @@
+<!doctype html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Lottery Order Management</title>
+    <link rel="stylesheet" href="../plugin/bootstrap/css/bootstrap.min.css"/>
+    <script src="../plugin/jquery/jquery.min.js"></script>
+    <script src="../plugin/bootstrap/js/bootstrap.min.js"></script>
+
+    <link rel="stylesheet" href="../style/common.css"/>
+    <script src="../script/common.bitproject.earth.lk.v1.js"></script>
+    <script src="../script/ui.bitproject.earth.lk.v2.js"></script>
+
+    <style>
+
+        body{
+
+            /*background-image: url("../image/a.jpg") repeat;*/
+            background: url(../image/aaa.jpg) repeat;
+            opacity: 0.85;
+            filter: alpha(opacity=90);/* For IE8 and earlier */
+            background-size: cover;
+        }
+    </style>
+
+
+    <script>
+
+        window.addEventListener("load", initialize);
+
+        //Initializing Functions
+
+        function initialize() {
+
+            btnAdd.addEventListener("click",btnAddMC);
+            btnClear.addEventListener("click",btnClearMC);
+            btnUpdate.addEventListener("click",btnUpdateMC);
+            btnDelete.addEventListener("click",btnDeleteMC);
+            //dteDOPaid.onchange = dteDOPaidCH;
+            btnSearch.addEventListener("click",btnSearchMC);
+            btnSearchClear.addEventListener("click",btnSearchClearMC);
+
+            privilages = httpRequest("../privilages?module=LOTTERYORDER","GET");
+
+            regexes = httpRequest("../regexes/lotteryorder","GET");
+            txtQuantity.setAttribute("data-pattern",regexes.quantity.regex);
+            txtBranchcode.setAttribute("data-pattern",regexes.branchcode.regex);
+            txtPaidamount.setAttribute("data-pattern",regexes.paidamount.regex);
+            txtWinningpayment.setAttribute("data-pattern",regexes.winningpayment.regex);
+
+            dealers = httpRequest("../dealers/list","GET");
+           /* draws = httpRequest("../draws/list/bylottery","GET");*/
+            lotteryorderstatuses = httpRequest("../lotteryorderstatuses/list","GET");
+            days = httpRequest("../days/list","GET");
+            lotterytypes = httpRequest("../lotterytypes/list","GET");
+
+            txtWinningpayment.addEventListener("change",txtTot);
+            txtPaidamount.addEventListener("change",txtTot);
+
+            cmbLotterytype.addEventListener("change",cmbDrawCH);
+            cmbDay.addEventListener("change",cmbDrawCH);
+
+            valid = "lightgreen";
+            invalid = "pink";
+            initial = "white";
+            updated = "khaki";
+            active = "khaki";
+
+            loadView();
+            loadForm();
+
+        }
+
+        function txtTot() {
+
+            var x = Number(txtWinningpayment.value.trim());
+            var y = Number(txtPaidamount.value.trim());
+
+            txtTotalpayment.value=x+y;
+            lotteryorder.totalpayment=txtTotalpayment.value;
+
+        }
+
+        function cmbDrawCH() {
+
+               if (cmbLotterytype.value != "Select Lottery Type" && cmbDay.value != "Select Day") {
+                   draws = httpRequest("../draws/list/bylottery?lotterytypeid=" +
+                       JSON.parse(cmbLotterytype.value).id + "&" + "dayid=" + JSON.parse(cmbDay.value).id, "GET");
+                   fillCombo(cmbDraw, "Select a Draw", draws, "no", "");
+               }
+        }
+
+
+        function loadView() {
+
+            //Search Area
+            txtSearchQuantity.value="";
+            fillCombo(cmbSearchDealer,"Dealer",dealers,"fullname","");
+            fillCombo(cmbSearchLotteryorderstatus,"Status",lotteryorderstatuses,"name","");
+            cmbSearchLotteryorderstatus.style.background = "";
+            cmbSearchDealer.style.background = "";
+            txtSearchQuantity.style.background = "";
+
+
+            //Table Area
+            activerowno = "";
+            activepage = 1;
+            //var query = "&quantity=";
+            loadTable(1,cmbPageSize.value,"");
+        }
+
+        function loadTable(page,size,query) {
+            page = page - 1;
+            lotteryorders = new Array();
+            var data = httpRequest("/lotteryorders?page="+page+"&size="+size+query,"GET");
+            if(data.content!= undefined) lotteryorders = data.content;
+            createPagination('pagination',data.totalPages, data.number+1,paginate);
+            fillTable('tblLotteryorder',lotteryorders,fillForm);
+            clearSelection(tblLotteryorder);
+            if(activerowno!="")selectRow(tblLotteryorder,activerowno,active);
+            window.location.href="#ui";
+        }
+
+        function paginate(page) {
+            var paginate;
+            if(oldlotteryorder==null){
+                paginate=true;
+            }else{
+                if(getErrors()==''&&getUpdates()==''){
+                    paginate=true;
+                }else{
+                    paginate = window.confirm("Form has Some Errors or Update Values. " +
+                        "Are you sure to discard that changes ?");
+                }
+            }
+            if(paginate) {
+                activepage=page;
+                activerowno=""
+                loadSearchedTable();
+                loadForm();
+            }
+
+        }
+
+
+        function loadForm() {
+            lotteryorder = new Object();
+            oldlotteryorder = null;
+
+            fillCombo(cmbDealer,"Select Dealer",dealers,"fullname","");
+            fillCombo(cmbLotteryorderstatus,"Select Lottery Order Status",lotteryorderstatuses,"name","requesting");
+            lotteryorder.lotteryorderstatusId=JSON.parse(cmbLotteryorderstatus.value);
+            fillCombo(cmbDay,"Select Day",days,"name","");
+            fillCombo(cmbLotterytype,"Select Lottery Type",lotterytypes,"name","");
+
+            var today = new Date();
+            var month = today.getMonth()+1;
+            if(month<10) month = "0"+month;
+            var date = today.getDate();
+            if(date<10) date = "0"+date;
+
+            dteDOPaid.value=today.getFullYear()+"-"+month+"-"+date;
+            lotteryorder.dopaid=dteDOPaid.value;
+
+            txtQuantity.value = "";
+            //txtNumber.disabled="";
+            txtBranchcode.value = "";
+            txtPaidamount.value = "";
+            txtWinningpayment.value = "";
+            txtDescription.value = "";
+            removeFile('fleSlip');
+
+            setStyle(initial);
+            cmbLotteryorderstatus.style.background=valid;
+            cmbLotteryorderstatus.disabled="disabled";
+            txtTotalpayment.disabled="disabled";
+            dteDOPaid.style.background=valid;
+
+            disableButtons(false, true, true);
+        }
+
+        function setStyle(style) {
+
+            cmbLotterytype.style.background = style;
+            cmbDay.style.background = style;
+            cmbDraw.style.background = style;
+            cmbDealer.style.background = style;
+            txtQuantity.style.background = style;
+            txtBranchcode.style.background = style;
+            txtPaidamount.style.background = style;
+            txtWinningpayment.style.background = style;
+            txtTotalpayment.style.background = style;
+            dteDOPaid.style.background = style;
+            cmbLotteryorderstatus.style.background = style;
+            txtDescription.style.background = style;
+
+        }
+
+        function disableButtons(add, upd, del) {
+
+            if (add || !privilages.add) btnAdd.setAttribute("disabled", "disabled");
+            else btnAdd.removeAttribute("disabled");
+
+            if (upd || !privilages.update) btnUpdate.setAttribute("disabled", "disabled");
+            else btnUpdate.removeAttribute("disabled");
+
+            if (del || !privilages.delete) btnDelete.setAttribute("disabled", "disabled");
+            else btnDelete.removeAttribute("disabled");
+
+        }
+
+
+        // Binding and Validation Functions for Non-Regex-Based
+        // When Regex-Based default validation is used, programmers do not need to define these functions
+        // Default Validation and Binding is coded in "ui.bitproject.earth.lk.js"
+
+
+
+
+        //Form Operation Functions
+
+        function getErrors() {
+
+            var errors = "";
+
+            if (cmbLotterytype.value == null)
+                errors = errors + "\n" + "Lottery Type is Not Selected";
+
+            if (cmbDay.value == null)
+                errors = errors + "\n" + "Day is Not Selected";
+
+            if (lotteryorder.drawId == null)
+                errors = errors + "\n" + "Draw is Not Selected";
+
+            if (lotteryorder.dealerId == null)
+                errors = errors + "\n" + "Dealer Not Selected";
+
+            if (lotteryorder.quantity == null)
+                errors = errors + "\n" + regexes.quantity.message;
+
+            if (lotteryorder.branchcode == null)
+                errors = errors + "\n" + regexes.branchcode.message;
+
+            if (lotteryorder.paidamount == null)
+                errors = errors + "\n" + regexes.paidamount.message;
+
+            if (lotteryorder.winningpayment== null)
+                errors = errors + "\n" + regexes.winningpayment.message;
+
+            return errors;
+
+        }
+
+        function btnAddMC() {
+
+            var errors = getErrors();
+
+            if(errors=="") {
+                var option = window.confirm("Are you sure to add following Order ?\n" +
+                    "\nLottery Type : " + lotteryorder.lotterytypeId.name+
+                    "\nDay : " + lotteryorder.dayId.name +
+                    "\nDraw : " + lotteryorder.drawId.no +
+                    "\nDealer : " + lotteryorder.dealerId.fullname +
+                    "\nQuantity : " + lotteryorder.quantity +
+                    "\nBranch Code : " + lotteryorder.branchcode +
+                    "\nPaid Amount : " + lotteryorder.paidamount +
+                    "\nWinning Payment : " + lotteryorder.winningpayment +
+                    "\nTotal Payment : " + lotteryorder.totalpayment +
+                    "\nPaid Date : " + lotteryorder.dopaid +
+                    "\nLottery Order Status: " + lotteryorder.lotteryorderstatusId.name);
+                if(option==true) {
+                    var response = httpRequest("/lotteryorders","POST",lotteryorder);
+                    if(response=="0"){
+                        toast("<strong>Success !</strong> Saved Successfully","success");
+                        loadForm();
+                        activerowno = 1;
+                        //loadSearchedTable();
+                        loadView();
+                    }
+                    else window.alert("Failed to Add as \n\n"+response);
+                }
+
+            }
+            else
+            { window.alert("You have following Errors\n"+errors); }
+
+        }
+
+        function btnClearMC() {
+            //Get Cofirmation from the User window.confirm();
+
+            /*var clear;
+            if(oldemployee==null){
+                clear=true;
+            }else{
+                if(getErrors()==''&&getUpdates()==''){
+                    clear=true;
+                }else{
+                    clear = window.confirm("Form has Some Errors or Update Values. " +
+                        "Are you sure to discard that changes ?");
+                }
+            }
+            if(clear) {
+                loadForm();
+                clearSelection(tblEmployee);
+            }
+
+*/
+
+
+        }
+
+        function fillForm(lo,rowno){
+            activerowno = rowno;
+            var filling;
+            if(oldlotteryorder==null){
+                filling=true;
+            }else{
+
+                if(getErrors()==''&&getUpdates()==''){
+                    filling=true;
+                }else{
+                    filling = window.confirm("Form has Some Errors or Update Values. " +
+                        "Are you sure to discard that changes ?");
+                }
+            }
+
+            if(filling) {
+
+                clearSelection(tblLotteryorder);
+                selectRow(tblLotteryorder,activerowno,active);
+
+                lotteryorder = JSON.parse(JSON.stringify(lo));
+                oldlotteryorder = JSON.parse(JSON.stringify(lo));
+
+                txtQuantity.value = lotteryorder.quantity;
+                txtBranchcode.value = lotteryorder.branchcode;
+                txtPaidamount.value = lotteryorder.paidamount;
+                txtWinningpayment.value = lotteryorder.winningpayment;
+                txtTotalpayment.value = lotteryorder.totalpayment;
+                txtDescription.value = lotteryorder.description;
+                dteDOPaid.value = lotteryorder.dopaid;
+
+                cmbLotterytype.disabled="disabled";
+                cmbDay.disabled="disabled";
+                cmbDraw.disabled="disabled";
+                cmbDealer.disabled="disabled";
+
+                fillCombo(cmbLotterytype, "Select Lottery Type", lotterytypes, "name", lotteryorder.drawId.lotteryId.lotterytypeId.name);
+                fillCombo(cmbDay, "Select Day", days, "name", lotteryorder.drawId.lotteryId.dayId.name);
+                fillCombo(cmbDealer, "Select Dealer", dealers, "fullname", lotteryorder.dealerId.fullname);
+
+                draws = httpRequest("../draws/list/bylottery?lotterytypeid=" +
+                    JSON.parse(cmbLotterytype.value).id + "&" + "dayid=" + JSON.parse(cmbDay.value).id, "GET");
+                fillCombo(cmbDraw, "Select Draw", draws, "no", lotteryorder.drawId.no);
+
+                fillCombo(cmbLotteryorderstatus, "", lotteryorderstatuses, "name", lotteryorder.lotteryorderstatusId.name);
+
+                setDefaultFile('fleSlip', lotteryorder.slip);
+
+                disableButtons(true, false, false);
+                setStyle(valid);
+            }
+
+        }
+
+        function getUpdates() {
+
+            var updates = "";
+
+            if(lotteryorder!=null && oldlotteryorder!=null) {
+
+                if (lotteryorder.quantity != oldlotteryorder.quantity)
+                    updates = updates + "\nQuantity is Changed";
+
+                if (lotteryorder.branchcode != oldlotteryorder.branchcode)
+                    updates = updates + "\nBranch Code is Changed";
+
+                if (lotteryorder.paidamount != oldlotteryorder.paidamount)
+                    updates = updates + "\nPaid Amount is Changed";
+
+                if (lotteryorder.winningpayment != oldlotteryorder.winningpayment)
+                    updates = updates + "\nWinning Payment is Changed";
+
+                if (lotteryorder.totalpayment != oldlotteryorder.totalpayment)
+                    updates = updates + "\nTotal Payment is Changed";
+
+                if (lotteryorder.dopaid != oldlotteryorder.dopaid)
+                    updates = updates + "\nDate of Paid is Changed";
+
+                if (lotteryorder.lotteryorderstatusId.name != oldlotteryorder.lotteryorderstatusId.name)
+                    updates = updates + "\nLottery Order Status is Changed";
+
+                if (lotteryorder.slip != oldlotteryorder.slip)
+                    updates = updates + "\nSlip is Changed";
+
+                if (lotteryorder.description != oldlotteryorder.description)
+                    updates = updates + "\nDescription is Changed";
+            }
+
+            return updates;
+
+        }
+
+        function btnUpdateMC() {
+            var errors = getErrors();
+            if (errors == "") {
+                var updates = getUpdates();
+                if (updates == "") window.alert("Nothing Updated!");
+                else {
+
+                    var option = window.confirm("\n\nAre your sure to update followings ! \n\n" + updates);
+                    if(option==true) {
+                        var response = httpRequest("/lotteryorders","PUT",lotteryorder);
+                        if(response=="0"){
+                            toast("<strong>Success !</strong> Updated Successfully","success");
+                            loadForm();
+                           // loadSearchedTable();
+                            loadView();
+
+                        }
+                        else window.alert("Failed to Update as \n\n"+response);
+                    }
+
+                }
+            }
+            else
+                window.alert("You have following errors in your form\n\n"+getErrors());
+        }
+
+        function btnDeleteMC() {
+
+
+            var option = window.confirm("\n\nAre your sure to delete following ! \n\n" +
+                "Draw : " +lotteryorder.drawId.no+ "\nDealer : " +lotteryorder.dealerId.fullname);
+
+            if(option==true) {
+                var response = httpRequest("/lotteryorders","DELETE",lotteryorder);
+                if(response=="0"){
+                    toast("<strong>Success !</strong> Deleted Successfully","success");
+                    loadForm();
+                    //loadSearchedTable();
+                    loadView();
+
+                }
+                else window.alert("Failed to Delete as \n\n"+response);
+            }
+
+        }
+
+
+        //Search Functions
+
+        function loadSearchedTable() {
+
+            var quantity = txtSearchQuantity.value;
+            var dealer = cmbSearchDealer.value;
+            var lotteryorderstatus = cmbSearchLotteryorderstatus.value;
+
+            var dealerid="";
+            if(dealer!="Designation")
+            { dealerid = JSON.parse(dealer).id;
+                cmbSearchDealer.style.background = active;}
+
+            var lotteryorderstatusid="";
+            if(lotteryorderstatus!="Status")
+            {  lotteryorderstatusid = JSON.parse(lotteryorderstatus).id;
+                cmbSearchLotteryorderstatus.style.background = active; }
+
+            if(quantity!=""){  txtSearchQuantity.style.background = active; }
+
+            var query ="&quantity=&dealerid=&lotteryorderstatusid=";
+
+
+            if(quantity!="" ||  dealerid!="" || lotteryorderstatusid!="" )
+               query = "&quantity=" + quantity + "&dealerid=" + dealerid + "&lotteryorderstatusid=" + lotteryorderstatusid;
+
+            //window.alert(query);
+            loadTable(activepage, cmbPageSize.value, query);
+
+        }
+
+        function btnSearchMC(){
+            activepage=1;
+            loadSearchedTable();
+        }
+
+        function btnSearchClearMC(){
+            loadView();
+        }
+
+    </script>
+
+
+
+</head>
+
+<body>
+<div class="container-fluid">
+    <div class="row" id="ui">
+        <div class="col-md-12">
+            <div class="panel panel-primary" style="margin-top: 10px;">
+                <div class="panel-heading" style="background-color: #000033;">
+                    <img style="margin:0 25px 0 15px; display: inline" height="100" width="100" src="../image/logo.png"/>
+                    <h3 style="display: inline">Lottery Order Management</h3>
+                </div>
+                <div class="panel-body" >
+                    <div class="row">
+
+                        <div class="col-md-4" id="form">
+                            <form class="form-horizontal" onsubmit="return false" id="lotteryorderform" >
+
+                                <script>
+
+                                    // Defining UI-Componnets and Layouts
+                                    // Default UI-Componnets and Layouts is coded in "ui.bitproject.earth.lk.js"
+
+                                    comboBox('lotteryorderform','cmbLotterytype','Lottery type',4,'lotteryorder','lotterytypeId','oldlotteryorder');
+                                    comboBox('lotteryorderform','cmbDay','Day',4,'lotteryorder','dayId','oldlotteryorder');
+                                    /*dateField('lotteryorderform','dteDODraw','Draw Date','Select Draw Date',4,"",'lotteryorder','dodraw','oldlotteryorder');*/
+                                    comboBox('lotteryorderform','cmbDraw','Draw',4,'lotteryorder','drawId','oldlotteryorder');
+                                    comboBox('lotteryorderform','cmbDealer','Dealer',4,'lotteryorder','dealerId','oldlotteryorder');
+                                    textField('lotteryorderform','txtQuantity','Quantity','Enter Quantity Here','',4,"",'lotteryorder','quantity','oldlotteryorder');
+                                    fileChooser('lotteryorderform','fleSlip','Slip',4,['.jpg','.png'],5,true,'lotteryorder','slip','oldlotteryorder');
+                                    textField('lotteryorderform','txtBranchcode','Branch Code','Enter Branch Code Here','',4,"",'lotteryorder','branchcode','oldlotteryorder');
+                                    textField('lotteryorderform','txtPaidamount','Paid Amount','Enter Paid Amount Here','',4,"",'lotteryorder','paidamount','oldlotteryorder');
+                                    textField('lotteryorderform','txtWinningpayment','Winning Payment','Enter Winniing Payment Here','',4,"",'lotteryorder','winningpayment','oldlotteryorder');
+                                    textField('lotteryorderform','txtTotalpayment','Total Payment','Enter Total Payment Here','',4,"",'lotteryorder','totalpayment','oldlotteryorder');
+                                    dateField('lotteryorderform','dteDOPaid','Paid Date','Select Paid Date',4,"",'lotteryorder','dopaid','oldlotteryorder');
+                                    comboBox('lotteryorderform','cmbLotteryorderstatus','Lottery Order Status',4,'lotteryorder','lotteryorderstatusId','oldlotteryorder');
+                                    textArea('lotteryorderform','txtDescription','Description','Enter Description Here','',4,"",'lotteryorder','description','oldlotteryorder');
+
+
+                                    // Custom UI-Componnets and Layouting
+
+                                </script>
+
+
+
+                                <div class="text-right">
+                                    <input class="btn btn-danger btn-sm" type="button" id="btnDelete" value="Delete" style="width: 15%"/>
+                                    <input class="btn btn-warning btn-sm" type="button" id="btnUpdate" value="Update" style="width: 15%"/>
+                                    <input class="btn btn-success btn-sm" type="button" id="btnAdd" value="Add" style="width: 17%"/>
+                                    <input class="btn btn-warning btn-sm" type="button" id="btnClear" value="Clear" style="width: 15%"/>
+                                </div>
+
+
+                            </form>
+                        </div>
+
+                        <div class="col-md-1"></div>
+
+                        <div class="col-md-7" id="lotteryorderview">
+                            <form class="form-inline" onsubmit="return false">
+                                <div class="form-group form-group-sm">
+                                    <input placeholder="Search By Quantity" class="form-control" type="text" id="txtSearchQuantity"/>
+                                </div>
+                                <div class="form-group form-group-sm">
+                                    <select class="form-control" id="cmbSearchDealer"></select>
+                                </div>
+                                <div class="form-group form-group-sm">
+                                    <select class="form-control" id="cmbSearchLotteryorderstatus"></select>
+                                </div>
+
+                                <input type="button" class="btn btn-warning btn-sm" value="Clear" id="btnSearchClear"/>
+                                <input type="button" class="btn btn-success btn-sm" value="Search" id="btnSearch"/>
+                            </form>
+                            <hr/>
+                            <div class="table-responsive" id="tableParent">
+
+                                <script>
+
+                                    function getDrawColumn(ob) {
+                                        return ob.drawId.no+ " " +ob.drawId.lotteryId.name;
+                                    }
+
+                                    var metadata = [
+                                        {name:'Draw',search:true,datatype:'text',property:getDrawColumn},
+                                        {name:'Dealer',search:true,datatype:'text',property:'dealerId.fullname'},
+                                        {name:'Quantity',search:true,datatype:'text',property:'quantity'},
+                                        {name:'Date',search:true,datatype:'text',property:'date'}
+
+
+                                    ];
+                                    table("tableParent","tblLotteryorder",metadata,[10,15,30,500,1000],btnSearchMC,true);
+
+                                </script>
+
+
+                            </div>
+                            <ul id="pagination" class="pagination"></ul>
+                        </div>
+                    </div>
+
+                </div>
+
+                <!--<div class="panel-footer">
+                    <div id="err">
+                        <h3>Error Log</h3>
+                    </div>
+                </div>-->
+
+            </div>
+        </div>
+    </div>
+</div>
+</body>
+</html>

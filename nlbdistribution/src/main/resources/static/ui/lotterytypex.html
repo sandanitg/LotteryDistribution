@@ -1,0 +1,702 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Earth University College : BIT Final Project</title>
+    <link rel="stylesheet" href="../plugin/bootstrap/css/bootstrap.min.css"/>
+    <script src="../plugin/jquery/jquery.min.js"></script>
+    <script src="../plugin/bootstrap/js/bootstrap.min.js"></script>
+
+    <link rel="stylesheet" href="../style/common.css"/>
+    <script src="../script/common.bitproject.earth.lk.v1.js"></script>
+    <script src="../script/ui.bitproject.earth.lk.v1.js"></script>
+
+    <script>
+
+        window.addEventListener("load", initialize);
+
+        //Initializing Functions
+
+        function initialize(){
+
+            btnAdd.addEventListener("click",btnAddMC);
+            btnClear.addEventListener("click",btnClearMC);
+            btnUpdate.addEventListener("click",btnUpdateMC);
+            btnDelete.addEventListener("click",btnDeleteMC);
+
+            txtPrize.addEventListener("keyup",txtPrizeKU);
+            txtDescription.addEventListener("keyup",txtDescriptionKU);
+            txtAmount.addEventListener("keyup",txtAmountKU);
+
+
+            btnAddPrize.addEventListener("click",btnAddPrizeMC);
+            btnSearch.addEventListener("click",btnSearchMC);
+            btnSearchClear.addEventListener("click",btnSearchClearMC);
+
+             regexes = httpRequest("../regexes/lotterytype","GET");
+             txtDigitformat.setAttribute("data-pattern",regexes.digitformat.regex);
+
+
+            // employeeswithoutusers = httpRequest("../datalists/employeeswithoutusers","GET");
+            digitsizes = httpRequest("../digitsizes/list","GET");
+            lotterytypestatuses = httpRequest("../lotterytypestatuses/list","GET");
+            digitoptions= httpRequest("../digitoptions/list","GET");
+           // prizes = httpRequest("../prizes/list");
+
+
+            valid = "lightgreen";
+            invalid = "pink";
+            initial = "white";
+            updated = "khaki";
+            active = "khaki";
+
+            loadView();
+            loadForm();
+
+
+        }
+
+        function loadView() {
+
+            //Search Area
+            txtSearchDigitformat.value="";
+            /*    fillCombo(cmbSearchRole,"Role",roles,"name","");
+                fillCombo(cmbSearchUserstatus,"Status",userstatuses,"name","");
+                cmbSearchUserstatus.style.background = "";
+                cmbSearchRole.style.background = "";*/
+            txtSearchDigitformat.style.background = "";
+
+            //Table Area
+            activerowno = "";
+            activepage = 1;
+            loadTable(1,cmbPageSize.value,"");
+
+        }
+
+        function loadTable(page,size,query) {
+            page = page - 1;
+            lotterytypes = new Array();
+            var data = httpRequest("/lotterytypes?page="+page+"&size="+size+query,"GET");
+            lotterytypes = data.content;
+            createPagination('pagination',data.totalPages, data.number+1,paginate);
+            fillTable('tblLotterytype',lotterytypes,fillForm);
+            clearSelection(tblLotterytype);
+            if(activerowno!="")selectRow(tblLotterytype,activerowno,active);
+            window.location.href="#ui";
+        }
+
+        function paginate(page) {
+            var paginate;
+            if(oldlotterytype==null){
+                paginate=true;
+            }else{
+                if(getErrors()==''&&getUpdates()==''){
+                    paginate=true;
+                }else{
+                    paginate = window.confirm("Form has Some Errors or Update Values. " +
+                        "Are you sure to discard that changes ?");
+                }
+            }
+            if(paginate) {
+                activepage=page;
+                activerowno=""
+                loadSearchedTable();
+                loadForm();
+            }
+
+        }
+
+
+
+        function loadForm() {
+
+            lotterytype = new Object();
+            oldlotterytype = null;
+
+            lotterytype.lotterytypedigitoptionList = new Array();
+            lotterytype.prizeList = new Array();
+            digitoptionsright = new Array();
+            digitoptionsleft = digitoptions;
+
+            setListTransferData('lotterytypedigitoption',digitoptions);
+
+            fillCombo(cmbDigitsize,"Select Digit Size",digitsizes,"name","single");
+            fillCombo(cmbLotterytypestatus,"Select Lottery Order status",lotterytypestatuses,"name","Available");
+
+            refreshInnerForm();
+
+
+            var today = new Date();
+            var month = today.getMonth()+1;
+            if(month<10) month = "0"+month;
+            var date = today.getDate();
+            if(date<10) date = "0"+date;
+
+            dteDOCreated.value=today.getFullYear()+"-"+month+"-"+date;
+
+            lotterytype.date=dteDOCreated.value;
+            //user.employeeCreatedId=JSON.parse(cmbEmployeeCreated.value);
+            // user.userstatusId=JSON.parse(cmbUserstatus.value);
+
+             txtName.value = "";
+             txtDigitformat.value = "";
+             digitoptionsright.value="";
+             //dteDOCreated.value="";
+
+             setStyle(initial);
+             cmbDigitsize.style.background=valid;
+             dteDOCreated.style.background=valid;
+             cmbLotterytypestatus.style.background=valid;
+
+             disableButtons(false, true, true);
+             cmbLotterytypestatus.disabled="disabled";
+        }
+
+
+        function refreshInnerForm() {
+            txtAmount.value="";
+            txtDescription.value="";
+            txtPrize.value="";
+            setStyle(initial);
+            fillInnerTable("tblPrize",lotterytype.prizeList,removePrizeList);
+        }
+
+
+        function removePrizeList(prizeList,index) {
+            lotterytype.prizeList.splice(index-1, 1);
+            refreshInnerForm();
+        }
+
+
+
+        function setStyle(style) {
+
+            txtName.style.background = style;
+            txtDigitformat.style.background = style;
+            cmbDigitsize.style.background = style;
+            dteDOCreated.style.background = style;
+            cmbLotterytypestatus.style.background = style;
+
+            txtAmount.style.background= style;
+            txtDescription.style.background= style;
+            txtPrize.style.background= style;
+
+        }
+
+        function disableButtons(add, upd, del) {
+
+           /* if (add) btnAdd.setAttribute("disabled", "disabled");
+            else btnAdd.removeAttribute("disabled");
+
+            if (upd) btnUpdate.setAttribute("disabled", "disabled");
+            else btnUpdate.removeAttribute("disabled");
+
+            if (del) btnDelete.setAttribute("disabled", "disabled");
+            else btnDelete.removeAttribute("disabled");*/
+
+        }
+
+
+        // Binding and Validation Functions for Non-Regex-Based
+        // When Regex-Based default validation is used, programmers do not need to define these functions
+        // Default Validation and Binding is coded in "ui.bitproject.earth.lk.js"
+
+
+        function btnAddPrizeMC() {
+
+            prize = new Object();
+            prize.name = txtPrize.value.trim();
+            prize.description = txtDescription.value.trim();
+            prize.amount = txtAmount.value.trim();
+
+
+            //invoiceitem.linetotal = invoiceitem.itemId.price * invoiceitem.quantity;
+
+            //window.alert( invoiceitem.itemId.name + "\n" +  invoiceitem.quantity + "\n" +  invoiceitem.linetotal );
+
+            lotterytype.prizeList.push(prize);
+            refreshInnerForm();
+
+        }
+
+
+        function txtAmountKU() {
+            var pattern = new RegExp('([\\d]{2,11})(([.][\\d]{2})?)$');
+            var amount = txtAmount.value.trim();
+            if(pattern.test(amount)) {
+                lotterytype.prizeList.amount = amount;
+                txtAmount.style.background = valid;
+            }
+            else
+            {
+                lotterytype.prizeList.amount = null;
+                txtAmount.style.background = invalid;
+            }
+        }
+
+
+        function txtDescriptionKU() {
+            var pattern = new RegExp('([a-zA-Z0-9]{4,10})$');
+            var description = txtDescription.value.trim();
+            if(pattern.test(description)) {
+                lotterytype.prizeList.description = description;
+                txtDescription.style.background = valid;
+            }
+            else
+            {
+                lotterytype.prizeList.description = null;
+                txtDescription.style.background = invalid;
+            }
+        }
+
+        function txtPrizeKU() {
+            var pattern = new RegExp('([a-zA-Z0-9]{3,15})$');
+            var prize = txtPrize.value.trim();
+            if(pattern.test(prize)) {
+                lotterytype.prizeList.prize = prize;
+                txtPrize.style.background = valid;
+            }
+            else
+            {
+                lotterytype.prizeList.prize = null;
+                txtPrize.style.background = invalid;
+            }
+        }
+
+
+        //Form Operation Functions
+
+        function getErrors(){
+
+            var errors = "";
+
+            if(lotterytype.name == null)
+                errors = errors + "\n" +  regexes.name.message;
+
+            if (lotterytype.digitformat == null)
+                errors = errors + "\n" + regexes.digitformat.message;
+
+            if (lotterytype.digitsizeId == null)
+                errors = errors + "\n" + "Digit Size Not Selected";
+
+           if (lotterytype.prizeList.length == 0)
+                errors = errors + "\n" + "Prizes are not Selected";
+
+            if (lotterytype.lotterytypedigitoptionList.length == 0)
+                errors = errors + "\n" + "Digit Options Not Selected";
+
+            if (lotterytype.date == null)
+                errors = errors + "\n" + "Date is Not Selected";
+
+
+            if (lotterytype.lotterytypestatusId == null)
+                errors = errors + "\n" + "Lottery Type Status is Not Selected";
+
+
+            return errors;
+
+        }
+
+        function btnAddMC() {
+
+
+            var errors = getErrors();
+
+            if (errors == "") {
+
+                var option = window.confirm("Are you sure to add following Lottery Type ?\n" +
+                    "\nLottery Type : " + lotterytype.name +
+                    "\nPrizes : " + lotterytype.prizeList.length +
+                    "\nDigit Options : " + lotterytype.lotterytypedigitoptionList.length +
+                    "\nDigit Format : " + lotterytype.digitformat +
+                    "\nLotery Type Status : " + lotterytype.lotterytypestatusId.name);
+                if (option == true) {
+                    var response = httpRequest("/lotterytypes", "POST", lotterytype);
+                    if (response == "0") {
+                        toast("<strong>Success !</strong> Saved Successfully", "success");
+
+                        loadForm();
+                        activerowno = 1;
+                        // loadSearchedTable();
+                        loadView();
+                    }
+                    else window.alert("Failed to Add as \n\n"+response);
+                }
+
+            }
+            else
+                window.alert("You have following Errors\n"+errors);
+
+        }
+
+
+
+        function btnClearMC() {
+            //Get Cofirmation from the User window.confirm();
+
+            var clear;
+            if(oldlotterytype==null){
+                clear=true;
+            }else{
+                if(getErrors()==''&&getUpdates()==''){
+                    clear=true;
+                }else{
+                    clear = window.confirm("Form has Some Errors or Update Values. " +
+                        "Are you sure to discard that changes ?");
+                }
+            }
+            if(clear) {
+                loadForm();
+                clearSelection(tblLotterytype);
+            }
+
+
+
+
+        }
+
+        function fillForm(lt,rowno) {
+
+            var filling;
+            if (oldlotterytype == null) {
+                filling = true;
+            } else {
+
+                if (getErrors() == '' && getUpdates() == '') {
+                    filling = true;
+                } else {
+                    filling = window.confirm("Form has Some Errors or Update Values. " +
+                        "Are you sure to discard that changes ?");
+                }
+            }
+
+            if (filling) {
+
+                setListTransferData('lotterytypedigitoption', digitoptions);
+
+                activerowno = rowno;
+
+                clearSelection(tblLotterytype);
+                selectRow(tblLotterytype, activerowno, active);
+
+                lotterytype = JSON.parse(JSON.stringify(lt));
+                oldlotterytype = JSON.parse(JSON.stringify(lt));
+
+                setListTransferValues('lotterytypedigitoption',lotterytype.lotterytypedigitoptionList);
+
+                txtName.value = lotterytype.name;
+                txtName.disabled="disabled";
+                txtDigitformat.value = lotterytype.digitformat;
+                dteDOCreated.value = lotterytype.date;
+                dteDOCreated.disabled="disabled";
+                txtDescription.value = lotterytype.description;
+
+                fillCombo(cmbDigitsize, "", digitsizes, "name", lotterytype.digitsizeId.name);
+                fillCombo(cmbLotterytypestatus, "", lotterytypestatuses, "name", lotterytype.lotterytypestatusId.name);
+
+                refreshInnerForm();
+
+                disableButtons(true, false, false);
+                setStyle(valid);
+
+            }
+        }
+
+
+        function getUpdates() {
+
+            var updates = "";
+
+            if(lotterytype!=null && oldlotterytype!=null) {
+
+                if (isEqual(lotterytype.prizeList,oldlotterytype.prizeList,"prizeId"))
+                    updates = updates + "\nPrizes are Changed";
+
+                if (isEqual(lotterytype.lotterytypedigitoptionList,oldlotterytype.lotterytypedigitoptionList,"digitoptionId"))
+                    updates = updates + "\nDigit Options are Changed";
+
+                if (lotterytype.digitformat != oldlotterytype.digitformat)
+                    updates = updates + "\nDigit Format is Changed";
+
+                if (lotterytype.digitsizeId.name != oldlotterytype.digitsizeId.name)
+                    updates = updates + "\nDigit Size is Changed";
+
+                if (lotterytype.lotterytypestatusId.name != oldlotterytype.lotterytypestatusId.name)
+                    updates = updates + "\nLottery Type Status is Changed";
+
+                if (lotterytype.date != oldlotterytype.date)
+                    updates = updates + "\nDate is Changed";
+
+            }
+
+            return updates;
+
+        }
+
+        function btnUpdateMC() {
+           var errors = getErrors();
+            if (errors == "") {
+                var updates = getUpdates();
+                if (updates == "") window.alert("Nothing Updated!");
+                else {
+                    var option = window.confirm("\n\nAre your sure to update followings ! \n\n" + updates);
+                    if(option==true) {
+                        var response = httpRequest("/lotterytypes","PUT",lotterytype);
+                        if(response=="0"){
+                            toast("<strong>Success !</strong> Updated Successfully","success");
+                            loadForm();
+                            //loadSearchedTable();
+                            loadView();
+                        }
+                        else window.alert("Failed to Update as \n\n"+response);
+                    }
+                }
+            }
+            else
+                window.alert("You have following errors in your form\n\n"+getErrors());
+        }
+
+        function btnDeleteMC() {
+
+            var option = window.confirm("\n\nAre your sure to delete following ! \n\n" +
+                "Lottery Type : " +lotterytype.name+ "\nDigit Format : " +lotterytype.digitformat);
+
+            if(option==true) {
+                var response = httpRequest("/lotterytypes","DELETE",lotterytype);
+                if(response=="0"){
+                    toast("<strong>Success !</strong> Deleted Successfully","success");
+                    loadForm();
+                    //  loadSearchedTable();
+                    loadView();
+
+                }
+                else window.alert("Failed to Delete as \n\n"+response);
+            }
+
+        }
+
+
+        //Search Functions
+
+        function loadSearchedTable(){
+
+            var digitformat = txtSearchDigitformat.value.trim();
+            /*  var role = cmbSearchRole.value;
+              var userstatus = cmbSearchUserstatus.value;
+
+              var roleid="";
+              if(role!="Role")
+              { roleid = JSON.parse(role).id;
+                  cmbSearchRole.style.background = active;}
+
+              var userstatusid="";
+              if(userstatus!="Status")
+              {  userstatusid = JSON.parse(userstatus).id;
+                  cmbSearchUserstatus.style.background = active; }
+  */
+              if(digitformat!=""){  txtSearchDigitformat.style.background = active; }
+
+              var query ="";
+
+              if(digitformat!="" )
+                  query = "&digitformat=" + digitformat;
+
+            /*if(username!="" || roleid!="" || userstatusid!="" )
+                query = "&username=" + username + "&roleid=" + roleid + "&userstatusid=" + userstatusid;
+*/
+
+            window.alert(query);
+              loadTable(activepage, cmbPageSize.value, query);
+
+        }
+
+        function btnSearchMC(){
+            activepage=1;
+            loadSearchedTable();
+        }
+
+        function btnSearchClearMC(){
+             loadView();
+        }
+
+
+    </script>
+
+
+
+
+</head>
+<body>
+<div class="container-fluid">
+    <div class="row" id="ui">
+        <div class="col-md-12">
+            <div class="panel panel-primary" style="margin-top: 10px;">
+                <div class="panel-heading" style="background-color: #000033;">
+                    <img style="margin:0 25px 0 15px; display: inline" height="100" width="100" src="../image/logo.png"/>
+                    <h3 style="display: inline">Lottary Type Management</h3>
+                </div>
+                <div class="panel-body">
+                    <div class="row">
+
+                        <div class="col-md-6" id="form">
+                            <form class="form-horizontal" onsubmit="return false" id="lotterytypeform" >
+
+                                <script>
+
+                                    // Defining UI-Componnets and Layouts
+                                    // Default UI-Componnets and Layouts is coded in "ui.bitproject.earth.lk.js"
+
+                                    textField('lotterytypeform','txtName','Lottery Type','Enter Lottery Name Here','',4,"",'lotterytype','name','oldlotterytype');
+                                    textField('lotterytypeform','txtDigitformat','Digit Format','Enter Digit Format Here','',4,"",'lotterytype','digitformat','oldlotterytype');
+                                    comboBox('lotterytypeform','cmbDigitsize','Digit Size',4,'lotterytype','digitsizeId','oldlotterytype');
+                                    listTransfer('lotterytypeform','lotterytypedigitoption','Digit Options',4,'lotterytype','oldlotterytype','lotterytypedigitoptionList','digitoptionId');
+
+
+                                </script>
+
+                                <div id="innerform" style="background-color: rgba(0,0,255,0.1); padding:20px 10px;margin-bottom: 15px">
+
+                                    <script>
+
+                                        //textField('innerform','txtPrize','Prize','Prize','',4,"",'','','');
+                                        //textField('innerform','txtDescription','Description','Description','',4,"",'','','');
+                                        //textField('innerform','txtAmount','Amount','Amount','',4,"",'','','');
+
+
+                                    </script>
+
+                                    <div class="form-group">
+                                        <label class="control-label col-md-4" for="txtPrize">Prize</label>
+                                        <div class="col-md-8">
+                                            <input type="text" id="txtPrize" placeholder="Enter Prize Here" class="form-control"/>
+                                        </div>
+                                    </div>
+
+
+                                    <div class="form-group">
+                                        <label class="control-label col-md-4" for="txtDescription">Description</label>
+                                        <div class="col-md-8">
+                                            <input type="text" id="txtDescription" placeholder="Enter Description Here" class="form-control"/>
+                                        </div>
+                                    </div>
+
+                                    <div class="form-group">
+                                        <label class="control-label col-md-4" for="txtAmount">Amount</label>
+                                        <div class="col-md-8">
+                                            <input type="text" id="txtAmount" placeholder="Enter Amount Here" class="form-control"/>
+                                        </div>
+                                    </div>
+
+
+                                    <div class="text-right" style="margin-bottom: 10px">
+                                        <input class="btn btn-primary btn-sm" type="button" id="btnAddPrize" value="Add" style=""/>
+                                    </div>
+                                    <div class="row">
+                                        <div class="table-responsive col-md-8 col-md-offset-4" id="tableInnerParent">
+                                            <script>
+                                                var metadatainnertable = [
+                                                    {name:'Prize',search:false,datatype:'text',property:'name'},
+                                                    {name:'Description',search:false,datatype:'text',property:'description'},
+                                                    {name:'Amount',search:false,datatype:'text',property:'amount'}
+                                                ];
+
+                                                tableForInnerForm("tableInnerParent","tblPrize",metadatainnertable,true);
+                                            </script>
+                                        </div>
+                                    </div>
+                                </div>
+
+
+
+                                <script>
+
+
+                                    ///textField('invoiceform','txtTotal','total','Total Price','',4,"",'invoice','total','oldinvoice');
+
+                                    dateField('lotterytypeform','dteDOCreated','Created Date','Select Created Date',4,"",'lotterytype','date','oldlotterytype');
+                                    comboBox('lotterytypeform','cmbLotterytypestatus','Status',4,'lotterytype','lotterytypestatusId','oldlotterytype');
+
+
+                                    // Custom UI-Componnets and Layouting
+
+                                    // invoiceitemList
+
+                                </script>
+
+                                <div class="text-right">
+                                    <input class="btn btn-danger btn-sm" type="button" id="btnDelete" value="Delete" style="width: 15%"/>
+                                    <input class="btn btn-warning btn-sm" type="button" id="btnUpdate" value="Update" style="width: 15%"/>
+                                    <input class="btn btn-success btn-sm" type="button" id="btnAdd" value="Add" style="width: 17%"/>
+                                    <input class="btn btn-warning btn-sm" type="button" id="btnClear" value="Clear" style="width: 15%"/>
+                                </div>
+
+
+                            </form>
+                        </div>
+
+
+                        <div class="col-md-1"></div>
+                        <div class="col-md-5" id="lotterytypeview">
+
+                            <form class="form-inline" onsubmit="return false">
+                                <div class="form-group form-group-sm">
+                                    <input placeholder="Search By Digit Format" class="form-control" type="text" id="txtSearchDigitformat"/>
+                                </div>
+
+                                <!--<div class="form-group form-group-sm">
+                                    <select class="form-control" id="cmbSearchRole"></select>
+                                </div>
+                                <div class="form-group form-group-sm">
+                                    <select class="form-control" id="cmbSearchUserstatus"></select>
+                                </div>-->
+                                <input type="button" class="btn btn-warning btn-sm" value="Clear Search" id="btnSearchClear"/>
+                                <input type="button" class="btn btn-success btn-sm" value="Search" id="btnSearch"/>
+                            </form>
+                            <hr/>
+
+
+                            <div class="table-responsive" id="tableParent">
+
+                                <script>
+
+                                    function getDigitColumn(ob) {
+                                        var digitoptionlist="";
+                                        for(x in ob.lotterytypedigitoptionList)
+                                            digitoptionlist = digitoptionlist + (digitoptionlist==""?"":", ") +ob.lotterytypedigitoptionList[x].digitoptionId.name;
+                                        return digitoptionlist;
+                                    }
+
+                                    function getPrizeColumn(ob) {
+                                        var prizel="";
+                                        for(x in ob.prizeList)
+                                            prizel = prizel + (prizel==""?"":", ") +ob.prizeList[x].name + " " +ob.prizeList[x].amount;
+                                        return prizel;
+                                    }
+                                    var metadata = [
+                                        {name:'Lottery type',search:true,datatype:'text',property:'name'},
+                                        {name:'Digits',search:true,datatype:'text',property:getDigitColumn},
+                                        {name:'Prizes',search:true,datatype:'text',property:getPrizeColumn},
+                                        {name:'Digit Format',search:true,datatype:'text',property:'digitformat'},
+                                        {name:'Status',search:true,datatype:'text',property:'lotterytypestatusId.name'}
+                                    ];
+
+                                    table("tableParent","tblLotterytype",metadata,[10,15,30,500,1000],btnSearchMC,true);
+
+                                </script>
+
+
+                            </div>
+                            <ul id="pagination" class="pagination"></ul>
+
+                        </div>
+                    </div>
+                </div>
+
+                <div class="panel-footer"><div id="err"><h3>Error Log</h3></div></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+</body>
+</html>
